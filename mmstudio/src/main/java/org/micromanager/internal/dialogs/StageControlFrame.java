@@ -140,9 +140,8 @@ public final class StageControlFrame extends JFrame {
          new JFormattedTextField[MAX_NUM_Z_PANELS];
    private final JButton[] plusButtons_ = new JButton[MAX_NUM_Z_PANELS];
    private final JButton[] minusButtons_ = new JButton[MAX_NUM_Z_PANELS];
-   //private JButton home_button;
-   //private JButton work_button;
-   private Integer workPosition = 20000;
+   private static final String WORK_POSITION = "WORK_POSITION";
+   private double workPosition = 0.0;
    /**
     * Shows the stage control UI.  Creates it if necessary.
     *
@@ -660,9 +659,10 @@ public final class StageControlFrame extends JFrame {
       }
 
       // add Home/Work button
+      workPosition = settings_.getDouble(WORK_POSITION, 0.0);
       JButton home_button = new JButton("Go Home");
-      JButton work_button = new JButton("Go Work @ " + String.valueOf(workPosition));
-
+      JButton work_button = new JButton("Go Work @ " + NumberUtils.doubleToDisplayString(workPosition));
+      
       home_button.addActionListener((ActionEvent e) -> {
          try{
             setRelativeStagePosition(-1 * core_.getPosition((String) zDriveSelect_[idx].getSelectedItem()) , idx);
@@ -675,7 +675,7 @@ public final class StageControlFrame extends JFrame {
       work_button.addActionListener((ActionEvent e) -> {
          try{
             int response = JOptionPane.showConfirmDialog(null,
-                  "Move stage " + zDriveSelect_[idx].getSelectedItem() + " to working position?" + String.valueOf(workPosition),
+                  "Move stage " + zDriveSelect_[idx].getSelectedItem() + " to working position?" + NumberUtils.doubleToDisplayString(workPosition),
                   "Move stage to working position?", JOptionPane.YES_NO_OPTION);
             if (response == JOptionPane.YES_OPTION) {
                setRelativeStagePosition(workPosition + -1 * core_.getPosition((String) zDriveSelect_[idx].getSelectedItem()) , idx);
@@ -694,14 +694,15 @@ public final class StageControlFrame extends JFrame {
                     String input = JOptionPane.showInputDialog(
                             null,
                             "Set new Work position:",
-                            String.valueOf(workPosition)
+                            NumberUtils.doubleToDisplayString(workPosition)
                     );
 
                     if (input != null) {  // user did not cancel
                         try {
-                            int newValue = Integer.parseInt(input.trim());
-                            workPosition = newValue;
-                            work_button.setText("Go Work @ " + String.valueOf(workPosition));
+                            
+                            workPosition = Double.parseDouble(input.trim());
+                            work_button.setText("Go Work @ " + NumberUtils.doubleToDisplayString(workPosition));
+                            settings_.putDouble(WORK_POSITION, workPosition);
                         } catch (NumberFormatException ex) {
                             JOptionPane.showMessageDialog(
                                     null,
