@@ -719,15 +719,17 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
       acquisitionOrderText_.setFont(new Font("", Font.PLAIN, 9));
       acquisitionOrderPanel_.add(acquisitionOrderText_, "alignx center");
 
-      acqOrderModes_ = new AcqOrderMode[4];
+      acqOrderModes_ = new AcqOrderMode[5];
       acqOrderModes_[0] = new AcqOrderMode(AcqOrderMode.TIME_POS_SLICE_CHANNEL);
       acqOrderModes_[1] = new AcqOrderMode(AcqOrderMode.TIME_POS_CHANNEL_SLICE);
       acqOrderModes_[2] = new AcqOrderMode(AcqOrderMode.POS_TIME_SLICE_CHANNEL);
       acqOrderModes_[3] = new AcqOrderMode(AcqOrderMode.POS_TIME_CHANNEL_SLICE);
+      acqOrderModes_[4] = new AcqOrderMode(AcqOrderMode.POS_CHANNEL_SLICE_TIME);
       acqOrderBox_.addItem(acqOrderModes_[0]);
       acqOrderBox_.addItem(acqOrderModes_[1]);
       acqOrderBox_.addItem(acqOrderModes_[2]);
       acqOrderBox_.addItem(acqOrderModes_[3]);
+      acqOrderBox_.addItem(acqOrderModes_[4]);
       return acquisitionOrderPanel_;
    }
 
@@ -1458,6 +1460,7 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
             acqOrderBox_.addItem(acqOrderModes_[1]);
             acqOrderBox_.addItem(acqOrderModes_[2]);
             acqOrderBox_.addItem(acqOrderModes_[3]);
+            acqOrderBox_.addItem(acqOrderModes_[4]);
          } else if (framesPanel_.isSelected() && positionsPanel_.isSelected()) {
             if (selectedIndex == 0 || selectedIndex == 2) {
                acqOrderBox_.addItem(acqOrderModes_[0]);
