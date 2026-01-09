@@ -1,80 +1,100 @@
-// fix until compiles with ant build-java
+/**
+ * A very simple Micro-Manager plugin, intended to be used as an example for
+ * developers wishing to create their own, actually useful plugins. This one
+ * demonstrates performing various common tasks, but does not do anything
+ * really useful.
+ *
+ * <p>Copy this code to a location of your choice, change the name of the project
+ * (and the classes), build the jar file and copy it to the mmplugins folder
+ * in your Micro-Manager directory.
+ *
+ * <p>Once you have it loaded and running, you can attach the NetBean debugger
+ * and use all of NetBean's functionality to debug your code.  If you make a
+ * generally useful plugin, please do not hesitate to send a copy to
+ * info@micro-manager.org for inclusion in the Micro-Manager source code
+ * repository.
+ *
+ * <p>LICENSE:      This file is distributed under the BSD license.
+ * License text is included with the source distribution.
+ * This file is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
+ *
+ * @author Nico Stuurman, 2012
+ * @copyright University of California
+ */
 
-package org.micromanager.plugins.lightexposure;
 
-import com.google.common.eventbus.Subscribe;
-import java.util.ArrayList;
-import java.util.List;
-import java.io.FileWriter;
-import java.io.IOException;
-import org.micromanager.MMPlugin;
+package org.micromanager.plugins.uvexposure;
+
+import org.micromanager.MenuPlugin;
 import org.micromanager.Studio;
-import org.micromanager.events.LiveModeEvent;
-import org.micromanager.acquisition.AcquisitionStartedEvent;
-import org.micromanager.data.DataProviderHasNewImageEvent;
-import org.micromanager.data.Image;
+import org.scijava.plugin.Plugin;
+import org.scijava.plugin.SciJavaPlugin;
 
+@Plugin(type = MenuPlugin.class)
+public class UVExposure implements SciJavaPlugin, MenuPlugin {
+   private Studio studio_;
+   private UVExposureFrame frame_;
 
-public class UVExposure{
+   /**
+    * This method receives the Studio object, which is the gateway to the
+    * Micro-Manager API. You should retain a reference to this object for the
+    * lifetime of your plugin. This method should not do anything except for
+    * store that reference, as Micro-Manager is still busy starting up at the
+    * time that this is called.
+    */
+   @Override
+   public void setContext(Studio studio) {
+      studio_ = studio;
+   }
 
-    private final Studio studio_;
-    private final List<ExposureRow> exposureTable_= new ArrayList<>();
+   /**
+    * This method is called when your plugin is selected from the Plugins menu.
+    * Typically at this time you should show a GUI (graphical user interface)
+    * for your plugin.
+    */
+   @Override
+   public void onPluginSelected() {
+      if (frame_ == null) {
+         // We have never before shown our GUI, so now we need to create it.
+         frame_ = new UVExposureFrame(studio_);
+      }
+      frame_.setVisible(true);
+   }
 
-    @Override
-    public void setContext(Studio studio) {
-        studio_ = studio;
-    }
+   /**
+    * This string is the sub-menu that the plugin will be displayed in, in the
+    * Plugins menu.
+    */
+   @Override
+   public String getSubMenu() {
+      return "Exposure Tools";
+   }
 
+   /**
+    * The name of the plugin in the Plugins menu.
+    */
+   @Override
+   public String getName() {
+      return "UV Exposure";
+   }
 
-    private static class ExposureRow {
-        double x;
-        double y;
-        String filter;
-        double timeMs;
+   @Override
+   public String getHelpText() {
+      return "Display table of UV Exposure";
+   }
 
-        ExposureRow(double x, double y, String filter, double timeMs){
-            this.x = x;
-            this.y = y;
-            this.filter = filter;
-            this.timeMs = timeMs;
-        }
-    }
+   @Override
+   public String getVersion() {
+      return "1.0";
+   }
 
-    private void addExposure(double x, double y, String filter, double timeMs){
-        exposureTable_.add(new ExposureRow(x,y,filter,timeMs));
-        System.out.println("Added exposure: ")+ exposureTable_.get(exposureTable_.size()-1);
-    }
-
-    @Subscribe
-    public void onLiveMode(LiveModeEvent event){
-        if (event.isOn()) {
-            liveStartTimeMs = System.currentTimeMillis();
-            liveOn = true;
-        } else {
-            liveOn = false;
-            long duration = System.currentTimeMillis() - liveStartTimeMs;
-            double x = studio_.core().get2DPositionX();
-            double y = studio_.core().get2DPositionY();
-            String filter = studio_.core().getString("FilterWheel", "Label");
-            addExposure(x,y,filter,duration);
-    }
-
-    @Subscribe
-    public void onNewAcquisition(AcquisitionStartedEvent event){
-        if (!autoStart_ || manager_ == null) {
-            return;
-        }
-        if (!event.isOn()) {
-            return;
-        }
-        // get time
-    }
-
-    @Subscribe
-    public void onNewImage(DataProviderHasNewImageEvent event){
-        //code
-    }
-    }
+   @Override
+   public String getCopyright() {
+      return "Fiona";
+   }
 }
-
-
