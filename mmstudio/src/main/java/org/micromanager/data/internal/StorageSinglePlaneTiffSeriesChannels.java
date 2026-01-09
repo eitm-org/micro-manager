@@ -75,7 +75,7 @@ import org.micromanager.internal.utils.TextUtils;
  * file contains a single 2D image plane. It descends from the old
  * TaggedImageStorageDiskDefault class.
  */
-public final class StorageSinglePlaneTiffSeries implements Storage {
+public final class StorageSinglePlaneTiffSeriesChannels implements Storage {
    private static final HashSet<String> ALLOWED_AXES = new HashSet<>(
          Arrays.asList(Coords.CHANNEL, Coords.T, Coords.Z,
                Coords.STAGE_POSITION));
@@ -103,7 +103,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
     * @param newDataSet Whether this is a new (true) or existing (false) dataset.
     * @throws IOException As can be expected with disk-based storage.
     */
-   public StorageSinglePlaneTiffSeries(DefaultDatastore store,
+   public StorageSinglePlaneTiffSeriesChannels(DefaultDatastore store,
                                        String directory, boolean newDataSet) throws IOException {
       store_ = store;
       dir_ = directory;
@@ -135,6 +135,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
    @Override
    public void putImage(Image image) {
       ImageSizeChecker.checkImageSizeInSummary(summaryMetadata_, image);
+      String channel_name = store_.getSummaryMetadata().getChannelNames()[image.getCoords().getChannel()];
       // Require images to only have time/channel/z/position axes.
       for (String axis : image.getCoords().getAxes()) {
          if (!ALLOWED_AXES.contains(axis)) {
@@ -164,7 +165,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       if (isMultiPosition_ && image.getMetadata() != null
             && !image.getMetadata().getPositionName("").equals("")) {
          // File is in a subdirectory.
-         positionPrefix = image.getMetadata().getPositionName("") + "/";
+         positionPrefix = image.getMetadata().getPositionName("") + "/" + channel_name + "/";
       }
       // Note, orderedAxes could be cached, but performance penalty is likely negligible
       List<String> orderedAxes = summaryMetadata_.getOrderedAxes();
@@ -192,6 +193,12 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
                && !posName.contentEquals("null")) {
             // Create a directory to hold images for this stage position.
             String dirName = dir_ + "/" + posName;
+            try {
+               JavaUtils.createDirectory(dirName);
+            } catch (Exception e) {
+               ReportingUtils.showError("Unable to create save directory " + dirName);
+            }
+            dirName = dirName + "/" + channel_name;
             try {
                JavaUtils.createDirectory(dirName);
             } catch (Exception e) {

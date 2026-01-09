@@ -183,6 +183,7 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
    private final MutablePropertyMapView settings_;
    private final NumberFormat numberFormat_;
    private JRadioButton singleButton_;
+   private JRadioButton singleChButton_;
    private JRadioButton multiButton_;
    private JRadioButton ndtiffButton_;
    private JCheckBox stackKeepShutterOpenCheckBox_;
@@ -1087,6 +1088,15 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
       saveTypeLabel.setFont(DEFAULT_FONT);
       savePanel_.add(saveTypeLabel, "alignx label");
 
+      singleChButton_ = new JRadioButton("Separate image files split by channel");
+      singleChButton_.setFont(DEFAULT_FONT);
+      singleChButton_.addActionListener(e -> {
+         DefaultDatastore.setPreferredSaveMode(mmStudio_,
+               Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES_CHANNELS);
+         applySettingsFromGUI();
+      });
+      savePanel_.add(singleChButton_, "spanx, split");
+
       singleButton_ = new JRadioButton("Separate image files");
       singleButton_.setFont(DEFAULT_FONT);
       singleButton_.addActionListener(e -> {
@@ -1143,6 +1153,7 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
       savePanel_.add(helpButton, "gapafter push");
 
       ButtonGroup buttonGroup = new ButtonGroup();
+      buttonGroup.add(singleChButton_);
       buttonGroup.add(singleButton_);
       buttonGroup.add(multiButton_);
       buttonGroup.add(ndtiffButton_);
@@ -1150,6 +1161,8 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
       Datastore.SaveMode mode = mmStudio_.data().getPreferredSaveMode();
       if (mode == Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES) {
          singleButton_.setSelected(true);
+      } else if (mode == Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES_CHANNELS) {
+         singleChButton_.setSelected(true);
       } else if (mode == Datastore.SaveMode.MULTIPAGE_TIFF) {
          multiButton_.setSelected(true);
       } else if (mode == Datastore.SaveMode.ND_TIFF) {
@@ -1489,6 +1502,8 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
          DefaultDatastore.setPreferredSaveMode(mmStudio_, sequenceSettings.saveMode());
          if (sequenceSettings.saveMode() == Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES) {
             singleButton_.setSelected(true);
+         } else if (sequenceSettings.saveMode() == Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES_CHANNELS) {
+            singleChButton_.setSelected(true);
          } else if (sequenceSettings.saveMode() == Datastore.SaveMode.MULTIPAGE_TIFF) {
             multiButton_.setSelected(true);
          } else if (sequenceSettings.saveMode() == Datastore.SaveMode.ND_TIFF) {
@@ -2064,6 +2079,9 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
       if (singleButton_.isSelected()) {
          DefaultDatastore.setPreferredSaveMode(mmStudio_,
                Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES);
+      } else if (singleChButton_.isSelected()) {
+         DefaultDatastore.setPreferredSaveMode(mmStudio_,
+               Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES_CHANNELS);
       } else if (multiButton_.isSelected()) {
          DefaultDatastore.setPreferredSaveMode(mmStudio_,
                  Datastore.SaveMode.MULTIPAGE_TIFF);
