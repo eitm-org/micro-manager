@@ -22,6 +22,47 @@ import javax.swing.JScrollPane;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import javax.swing.SwingUtilities;
+import org.micromanager.display.DataViewer;
+import org.micromanager.data.DataProvider;
+import com.google.common.eventbus.Subscribe;
+import ij.gui.Roi;
+import ij.plugin.frame.RoiManager;
+import ij.process.ImageProcessor;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Paint;
+import java.awt.Shape;
+import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.geom.Ellipse2D;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import net.miginfocom.swing.MigLayout;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartFrame;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+import org.micromanager.Studio;
+import org.micromanager.acquisition.AcquisitionStartedEvent;
+import org.micromanager.data.DataProvider;
+import org.micromanager.data.DataProviderHasNewImageEvent;
+import org.micromanager.data.Image;
+import org.micromanager.display.DataViewer;
+import org.micromanager.events.LiveModeEvent;
+import org.micromanager.internal.utils.WindowPositioning;
+import org.micromanager.propertymap.MutablePropertyMapView;
+import java.util.Collections;
 
 public class UVExposureFrame extends JFrame {
 
@@ -30,17 +71,13 @@ public class UVExposureFrame extends JFrame {
     private JTable table_;
     private DefaultTableModel tableModel_;
 
-
     public UVExposureFrame(Studio studio) {
         super("UV Exposure Table");
         studio_ = studio;
         studio_.events().registerForEvents(this);
 
-        tableModel_ = new DefaultTableModel(
-            new String[]{"X", "Y", "Filter", "Exposure (ms)"},
-            0
-        );
-
+        tableModel_ = new DefaultTableModel(new String[]{"X", "Y", "Filter", "Exposure (ms)"}, 0);
+        
         table_ = new JTable(tableModel_);
         JScrollPane scrollPane = new JScrollPane(table_);
 
@@ -51,7 +88,6 @@ public class UVExposureFrame extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
-
 
 
     private static class ExposureRow {
@@ -68,61 +104,54 @@ public class UVExposureFrame extends JFrame {
         }
     }
 
-    private void addExposure(double x, double y, String filter, double timeMs) {
-        exposureTable_.add(new ExposureRow(x, y, filter, timeMs));
-
-        SwingUtilities.invokeLater(() -> {
-            tableModel_.addRow(new Object[]{
-                x, y, filter, timeMs
-            });
-        });
-
-        System.out.println("Added exposure row");
+    private ExposureRow findMatchingRow(double x, double y, String filter) {
+        for (ExposureRow row : exposureTable_) {
+            if (row.filter.equals(filter) && Math.abs(row.x - x) < 1e-6 && Math.abs(row.y - y) < 1e-6) {
+                return row;
+            }
+        }
+        return null;
     }
 
-     /* 
+
+    private void addExposure(double x, double y, String filter, double timeMs) {
+        ExposureRow existing = findMatchingRow(x, y, filter);
+
+        // if row with same position and filter exists
+        if (existing != null) {
+            existing.timeMs += timeMs;
+
+            int rowIndex = exposureTable_.indexOf(existing);
+
+            SwingUtilities.invokeLater(() -> {
+                tableModel_.setValueAt(existing.timeMs, rowIndex, 3);
+            });
+
+        // if row with same position and filter does not exist
+        } else {
+            ExposureRow newRow = new ExposureRow(x, y, filter, timeMs);
+            exposureTable_.add(newRow);
+
+            SwingUtilities.invokeLater(() -> {
+                tableModel_.addRow(new Object[]{
+                    x, y, filter, timeMs
+                });
+            });
+        }
+    }
+
+
     @Subscribe
     public void onLiveMode(LiveModeEvent event) {
-        System.out.println("LiveModeEvent fired: " + event.isOn());
+        if (!event.isOn()) return;
 
-        SwingUtilities.invokeLater(() -> {
-            tableModel_.addRow(new Object[]{
-                -1, -1, "LIVE_MODE", event.isOn() ? 1.0 : 0.0
-            });
-        });
+        DataViewer viewer = studio_.displays().getActiveDataViewer();
+        if (viewer == null) return;
+
+        viewer.getDataProvider().registerForEvents(this);
     }
 
 
-
-    @Subscribe
-    public void onNewAcquisition(AcquisitionStartedEvent event){
-        if (!autoStart_ || manager_ == null) {
-            return;
-        }
-        if (!event.isOn()) {
-            return;
-        }
-        // get time
-    }
-    
-   
-    @Subscribe
-    public void onNewImage(DataProviderHasNewImageEvent event){
-        Image img = event.getImage();
-        if (img==null) return;
-        // double x = studio_.core().get2DPositionX();
-        // double y = studio_.core().get2DPositionY();
-        // String filter = studio_.core().getString("FilterWheel", "Label");
-        double x = 2;
-        double y = 1;
-        String filter = "NADH";
-        double duration = img.getMetadata().getExposureMs();
-
-        addExposure(x,y,filter,duration);
-
-    }
-
-*/
 
     @Subscribe
     public void onNewAcquisition(AcquisitionStartedEvent event) {
@@ -141,16 +170,21 @@ public class UVExposureFrame extends JFrame {
             return;
         }
 
-        // Example coordinates and filter (replace with real values if you have them)
         double x = img.getMetadata().getXPositionUm();
-        double y = img.getMetadata().getYPositionUm();
-        String filter = img.getMetadata().getUUID();
+        double y = img.getMetadata().getYPositionUm();        
+
+        int channelIndex = img.getCoords().getC();
+        DataProvider dp = event.getDataProvider();
+        List<String> channelNames = dp.getSummaryMetadata().getChannelNameList();
+        String filter = channelNames.get(channelIndex);
+
+
+       // String filter = "NADH";
         double duration = img.getMetadata().getExposureMs();
 
-        // Add the exposure to your table
         addExposure(x, y, filter, duration);
-
     }
+
 }
 
 
