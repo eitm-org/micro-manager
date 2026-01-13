@@ -1,8 +1,6 @@
 /**
- * A very simple Micro-Manager plugin, intended to be used as an example for
- * developers wishing to create their own, actually useful plugins. This one
- * demonstrates performing various common tasks, but does not do anything
- * really useful.
+ * A Micro-Manager plugin, intended to calculate the exposure time at (X,Y) position
+ * and filter. 
  *
  * <p>Copy this code to a location of your choice, change the name of the project
  * (and the classes), build the jar file and copy it to the mmplugins folder
@@ -23,8 +21,7 @@
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
  *
- * @author Nico Stuurman, 2012
- * @copyright University of California
+ * @author Fiona Ryan
  */
 
 
