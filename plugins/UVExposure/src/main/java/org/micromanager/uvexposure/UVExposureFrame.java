@@ -23,6 +23,10 @@ import org.micromanager.data.DataProvider;
 import java.awt.Font;
 import java.awt.Color;
 
+import javax.swing.Timer;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+
 
 public class UVExposureFrame extends JFrame {
 
@@ -31,6 +35,10 @@ public class UVExposureFrame extends JFrame {
     private JTable table_;
     private DefaultTableModel tableModel_;
     private DataProvider dataProvider_;
+    private Timer liveTimer_;
+    private int pollIntervalMs_ = 200; 
+    private long lastPollTimeMs_ = -1;
+
 
     public UVExposureFrame(Studio studio) {
         super("UV Exposure Table");
@@ -64,6 +72,7 @@ public class UVExposureFrame extends JFrame {
         }
     }
 
+    // helper function to find if row with same X and Y already exist
     private ExposureRow findMatchingRow(double x, double y, String filter) {
         for (ExposureRow row : exposureTable_) {
             if (row.filter.equals(filter) && Math.abs(row.x - x) < 1e-6 && Math.abs(row.y - y) < 1e-6) {
@@ -98,14 +107,42 @@ public class UVExposureFrame extends JFrame {
 
     @Subscribe
     public void onLiveMode(LiveModeEvent event) {
-        if (!event.isOn()) return;
+        if (!event.isOn()) {
+            if (liveTimer_ != null) {
+                liveTimer_.stop();
+            }
+            lastPollTimeMs_ = -1;
+            return;
+        }
 
-        DataViewer viewer = studio_.displays().getActiveDataViewer();
-        if (viewer == null) return;
+        lastPollTimeMs_ = System.currentTimeMillis();
 
-        viewer.getDataProvider().registerForEvents(this);
+        liveTimer_ = new Timer(pollIntervalMs_, e -> pollCurrentExposure());
+        liveTimer_.start();
     }
 
+    // helper function to calculate exposure time on live mode
+    private void pollCurrentExposure() {
+        try {
+            long now = System.currentTimeMillis();
+
+            if (lastPollTimeMs_ < 0) {
+                lastPollTimeMs_ = now;
+                return;
+            }
+
+            double deltaMs = now - lastPollTimeMs_;
+            lastPollTimeMs_ = now;
+
+            double x = studio_.core().getXPosition();
+            double y = studio_.core().getYPosition();
+            String filter = studio_.core().getCurrentConfig("Channel");
+
+            addExposure(x, y, filter, deltaMs);
+
+        } catch (Exception ignored) {
+        }
+    }
 
 
     @Subscribe
@@ -138,7 +175,3 @@ public class UVExposureFrame extends JFrame {
     }
 
 }
-
-
-
-
