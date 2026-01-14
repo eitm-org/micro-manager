@@ -178,10 +178,13 @@ public class ZStackFocusOptimizer implements FocusOptimizer {
          PlotUtils pu = new PlotUtils(studio_);
          pu.plotDataN("Focus Score", data, "z position, best z="+NumberUtils.doubleToDisplayString(newZ), "Focus Score", shapes, "", newZ);
       }
-
-      File csvFile = new File(studio_.getAcquisitionManager().getAcquisitionSettings().root() + "/"+isoTimestampFilename("focus-score", "csv"));
-      saveXYSeriesToCSV(xySeries, csvFile);
-
+      String fname = studio_.getAcquisitionManager().getAcquisitionSettings().root() + "/"+isoTimestampFilename("focus-score", "csv");
+      try {
+         File csvFile = new File(fname);
+         saveXYSeriesToCSV(xySeries, csvFile);
+      }catch(Exception e){
+         studio_.logs().logError("Exception trying to save AF results into file " +fname+": " + e );
+      }
       return newZ;
    }
 
