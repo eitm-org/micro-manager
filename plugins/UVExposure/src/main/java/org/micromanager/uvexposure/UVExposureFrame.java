@@ -11,6 +11,7 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import javax.swing.JButton;
 
 import org.micromanager.Studio;
 import org.micromanager.events.LiveModeEvent;
@@ -27,6 +28,12 @@ import javax.swing.Timer;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 
+import javax.swing.JFileChooser;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import javax.swing.*;
+import java.awt.*;
 
 public class UVExposureFrame extends JFrame {
 
@@ -52,6 +59,37 @@ public class UVExposureFrame extends JFrame {
 
         setLayout(new BorderLayout());
         add(scrollPane, BorderLayout.CENTER);
+
+        JButton saveButton = new JButton("Save");
+            saveButton.addActionListener(e -> {
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setDialogTitle("Save exposure table as CSV");
+                int userSelection = fileChooser.showSaveDialog(this);
+                if (userSelection == JFileChooser.APPROVE_OPTION) {
+                    try (FileWriter writer = new FileWriter(fileChooser.getSelectedFile() + ".csv")) {
+                        writer.append("X,Y,Filter,Exposure (ms)\n"); // CSV headers
+                        
+                        for (ExposureRow row : exposureTable_) {
+                            writer.append(row.x + "," + row.y + "," + row.filter + "," + row.timeMs + "\n"); // CSV rows
+                        }
+                        
+                        writer.flush();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+        
+        JButton clearButton = new JButton("Clear");
+            clearButton.addActionListener(e -> {
+                tableModel_.setRowCount(0);
+                exposureTable_.clear();  
+            });
+        
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(saveButton);
+        buttonPanel.add(clearButton);
+        add(buttonPanel, BorderLayout.SOUTH);
 
         setSize(600, 400);
         setLocationRelativeTo(null);
@@ -81,6 +119,11 @@ public class UVExposureFrame extends JFrame {
         }
         return null;
     }
+
+    private double roundToNearest100(double position) {
+        return Math.round(position / 100.0) * 100.0;
+    }
+
 
 
     private void addExposure(double x, double y, String filter, double timeMs) {
@@ -134,8 +177,8 @@ public class UVExposureFrame extends JFrame {
             double deltaMs = now - lastPollTimeMs_;
             lastPollTimeMs_ = now;
 
-            double x = studio_.core().getXPosition();
-            double y = studio_.core().getYPosition();
+            double x = roundToNearest100(studio_.core().getXPosition());
+            double y = roundToNearest100(studio_.core().getYPosition());
             String filter = studio_.core().getCurrentConfig("Channel");
 
             addExposure(x, y, filter, deltaMs);
@@ -162,8 +205,8 @@ public class UVExposureFrame extends JFrame {
             return;
         }
 
-        double x = img.getMetadata().getXPositionUm();
-        double y = img.getMetadata().getYPositionUm();
+        double x = roundToNearest100(img.getMetadata().getXPositionUm());
+        double y = roundToNearest100(img.getMetadata().getYPositionUm());
        
         int channelIndex = img.getCoords().getC();
         List<String> channelNames = event.getDataProvider().getSummaryMetadata().getChannelNameList();
