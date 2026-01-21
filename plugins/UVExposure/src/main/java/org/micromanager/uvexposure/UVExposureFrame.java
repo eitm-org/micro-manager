@@ -15,6 +15,8 @@ import javax.swing.JButton;
 
 import org.micromanager.Studio;
 import org.micromanager.events.LiveModeEvent;
+import org.micromanager.data.internal.DefaultNewImageEvent;
+import org.micromanager.display.DisplayDidShowImageEvent;
 import org.micromanager.acquisition.AcquisitionStartedEvent;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Image;
@@ -120,12 +122,13 @@ public class UVExposureFrame extends JFrame {
         return null;
     }
 
+    // helper function to round X and Y positions to nearest 100um
     private double roundToNearest100(double position) {
         return Math.round(position / 100.0) * 100.0;
     }
 
 
-
+    // function to add exposure to exposure table
     private void addExposure(double x, double y, String filter, double timeMs) {
         ExposureRow existing = findMatchingRow(x, y, filter);
 
@@ -216,5 +219,36 @@ public class UVExposureFrame extends JFrame {
 
         addExposure(x, y, filter, duration);
     }
+
+
+    /*
+    Attempting Snap image
+
+    
+    @Subscribe
+    public void onDisplayImage(DisplayDidShowImageEvent event) {
+        Image img = event.getPrimaryImage();
+        if (img == null) {
+            double x=1;
+            double y=2;
+            String filter="NADH";
+            double duration = 2.3;
+            addExposure(x, y, filter, duration);
+            return;
+        }
+
+        double x = roundToNearest100(img.getMetadata().getXPositionUm());
+        double y = roundToNearest100(img.getMetadata().getYPositionUm());
+
+        int channelIndex = img.getCoords().getC();
+        List<String> channelNames = event.getDataViewer().getDataProvider().getSummaryMetadata().getChannelNameList();
+        String filter = channelNames.get(channelIndex);
+
+        double duration = img.getMetadata().getExposureMs();
+
+        addExposure(x, y, filter, duration);
+    }
+
+    */      
 
 }
