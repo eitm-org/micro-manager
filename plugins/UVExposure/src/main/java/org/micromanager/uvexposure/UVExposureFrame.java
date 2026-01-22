@@ -17,6 +17,7 @@ import org.micromanager.Studio;
 import org.micromanager.events.LiveModeEvent;
 import org.micromanager.data.internal.DefaultNewImageEvent;
 import org.micromanager.display.DisplayDidShowImageEvent;
+
 import org.micromanager.acquisition.AcquisitionStartedEvent;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Image;
@@ -47,8 +48,6 @@ public class UVExposureFrame extends JFrame {
     private Timer liveTimer_;
     private int pollIntervalMs_ = 200; 
     private long lastPollTimeMs_ = -1;
-
-
     public UVExposureFrame(Studio studio) {
         super("UV Exposure Table");
         studio_ = studio;
