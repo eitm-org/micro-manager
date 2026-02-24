@@ -921,10 +921,27 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                   for (int i = 0; i < msp.size(); i++) {
                      StagePosition sp = msp.get(i);
                      if (sp != null && sp.is1DStagePosition()) {
+                        // TODO check that we are only updating FocusDevice in case there are > 2 Z stages
+                        // here we adjust the Z position of the event
+                        // because at this point in code the event was already generated
+                        // and event.zPos has already been set using old (un-adjusted)
+                        // event's stage coordinate event.sp.get1DPosition()
+                        // hence, adjusting coordinate using setStageCoordinate
+                        // doesn't affect event's zPos
+                        studio_.core().logMessage("Adjusting Z position for event; current zPos = "
+                                + event.getZPosition() + ", current stage single axis position = "
+                                + event.getStageSingleAxisStagePosition(sp.getStageDeviceLabel()) + ", new stage position = " + sp.get1DPosition());
+                        event.setZ(event.getZIndex(),
+                            event.getZPosition() -
+                            event.getStageSingleAxisStagePosition(sp.getStageDeviceLabel()) +
+                            sp.get1DPosition()
+                           );
                         event.setStageCoordinate(sp.getStageDeviceLabel(), sp.get1DPosition());
                      }
                   }
                }
+            }else{ // we dont have positions, AF just moved stage but didn't update poslist
+                  
             }
             return event;
          }
