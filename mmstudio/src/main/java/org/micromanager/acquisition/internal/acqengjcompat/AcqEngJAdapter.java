@@ -225,6 +225,10 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
             sb.timeFirst(true);
             sb.slicesFirst(true);
             break;
+         case AcqOrderMode.POS_CHANNEL_SLICE_TIME:
+            sb.timeFirst(true);
+            sb.slicesFirst(true);
+            break;
          default:
             break;
       }
@@ -363,6 +367,7 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
             }
             currentAcquisition_.addHook(restorePositionHook(msp),
                     AcquisitionAPI.AFTER_EXPOSURE_HOOK);
+            //currentAcquisition_.addHook(adjustZDrivesHook(), AcquisitionAPI.BEFORE_HARDWARE_HOOK);
          }
          // This hook is used to update the time of the next wake up call
          if (sequenceSettings.useFrames()) {
@@ -702,8 +707,21 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
          if (acquisitionSettings.useChannels()) {
             acqFunctions.add(channels);
          }
-      } else {
-         throw new RuntimeException("Unknown acquisition order");
+      } else if(acquisitionSettings.acqOrderMode() == AcqOrderMode.POS_CHANNEL_SLICE_TIME){
+         if (acquisitionSettings.usePositionList()) {
+            acqFunctions.add(positions);
+         }
+         if (acquisitionSettings.useChannels()) {
+            acqFunctions.add(channels);
+         }
+         if (acquisitionSettings.useSlices()) {
+            acqFunctions.add(zStack);
+         }
+         if (acquisitionSettings.useFrames()) {
+            acqFunctions.add(timelapse);
+         }
+      }else {
+         throw new RuntimeException("Unknown acquisition order " + acquisitionSettings.acqOrderMode());
       }
 
       AcquisitionEvent baseEvent = new AcquisitionEvent(currentAcquisition_);
@@ -1759,6 +1777,23 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
             || sequenceSettings_.useChannels()
             || sequenceSettings_.useSlices()) {
          StringBuilder order = new StringBuilder("\nOrder: ");
+
+         if(sequenceSettings_.acqOrderMode() == AcqOrderMode.POS_CHANNEL_SLICE_TIME){
+            if(sequenceSettings_.usePositionList()){
+               order.append("Position, ");
+            }
+            if(sequenceSettings_.useChannels()){
+               order.append("Channel, ");
+            }
+            if(sequenceSettings_.useSlices()){
+               order.append("Slice, ");
+            }
+            if(sequenceSettings_.useFrames()){
+               order.append("Time");
+            }
+            return txt + order.toString();
+         }
+
          if (sequenceSettings_.useFrames() && sequenceSettings_.usePositionList()) {
             if (sequenceSettings_.acqOrderMode() == AcqOrderMode.TIME_POS_CHANNEL_SLICE
                   || sequenceSettings_.acqOrderMode() == AcqOrderMode.TIME_POS_SLICE_CHANNEL) {
