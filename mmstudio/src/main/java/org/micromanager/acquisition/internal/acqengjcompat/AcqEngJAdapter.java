@@ -909,6 +909,9 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                         // event's stage coordinate event.sp.get1DPosition()
                         // hence, adjusting coordinate using setStageCoordinate
                         // doesn't affect event's zPos
+                        studio_.core().logMessage("Adjusting Z position for event; current zPos = "
+                                + event.getZPosition() + ", current stage single axis position = "
+                                + event.getStageSingleAxisStagePosition(sp.getStageDeviceLabel()) + ", new stage position = " + sp.get1DPosition());
                         event.setZ(event.getZIndex(),
                             event.getZPosition() -
                             event.getStageSingleAxisStagePosition(sp.getStageDeviceLabel()) +
@@ -918,6 +921,8 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                      }
                   }
                }
+            }else{ // we dont have positions, AF just moved stage but didn't update poslist
+                  
             }
             return event;
          }
