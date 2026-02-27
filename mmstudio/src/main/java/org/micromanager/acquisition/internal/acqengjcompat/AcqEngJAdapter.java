@@ -865,6 +865,7 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
 
          @Override
          public AcquisitionEvent run(AcquisitionEvent event) {
+            studio_.logs().logError("Autofocus hook called for event: " + event);
             if (!event.isAcquisitionFinishedEvent()
                   && (event.getZIndex() == null || event.getZIndex() == 0)
                   && (event.getAxisPosition(AcqEngMetadata.CHANNEL_AXIS) == null
@@ -874,13 +875,20 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                   return event;
                }
                try {
-                  studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
+                  Double focusZ = studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
+                  studio_.core().setPosition(focusZ);
+                  // core.waitForDevice(zDrive_);
+                  studio_.logs().logMessage("   Autofocus best Z + AF offset= " + focusZ);
+                  studio_.core().updateSystemStateCache();
+
                   String posName = event.getTags().get(AcqEngMetadata.POS_NAME);
                   if (posName != null) {
                      MultiStagePosition msp = new MultiStagePosition();
                      msp.setLabel(posName);
                      for (String deviceName : event.getStageDeviceNames()) {
-                        msp.add(StagePosition.create1D(deviceName, core_.getPosition(deviceName)));
+                        Double stage_pos = core_.getPosition(deviceName);
+                        msp.add(StagePosition.create1D(deviceName, stage_pos));
+                        studio_.logs().logMessage("   Autofocus moved stage " + deviceName + " to position " + stage_pos);
                      }
                      positionMap_.put(posName, msp);
                   }
