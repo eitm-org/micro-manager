@@ -13,6 +13,7 @@ import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.imageprocessing.curvefit.Fitter;
 import org.micromanager.imageprocessing.curvefit.PlotUtils;
+import org.micromanager.alerts.UpdatableAlert;
 
 /**
  * This class uses a Z-stack of images to perform autofocus. The Z position with the highest focus
@@ -29,6 +30,7 @@ public class ZStackFocusOptimizer implements FocusOptimizer {
    private double searchRangeUm_ = 10.0; //
    private double absoluteToleranceUm_ = 1.0; // abuse the tolerance setting as Z step size
    private int imageCount_ = 0;
+   private UpdatableAlert progressAlert_;
 
    /**
     * The constructor takes a function that calculates a focus score.
@@ -149,7 +151,15 @@ public class ZStackFocusOptimizer implements FocusOptimizer {
             }
             ImageProcessor proc = studio_.data().ij().createProcessor(img);
             focusScoreMap.put(positions.get(imageCount_), imgScoringFunction_.apply(proc));
+            String text = "AF Z stack progress: " + i +"/"+nrZ+" images...";
+            if (progressAlert_ == null) {
+            } else{
+               progressAlert_.setText(text);
+            }
             imageCount_++;
+         }
+         if (progressAlert_ != null) {
+            progressAlert_.dismiss();
          }
       }
 
