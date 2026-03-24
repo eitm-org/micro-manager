@@ -1,3 +1,19 @@
 <project name="FOVSymmetry" default="jar">
 	<import file="../javapluginbuild.xml"/>
+
+	<target name="unittest">
+    <junit printsummary="yes" showoutput="true">
+        <classpath>
+            <pathelement location="./junit-4.8.2.jar"/>
+            <pathelement location="./ant-junit4.jar"/>
+        </classpath>
+
+        <formatter type="plain" />
+
+        <test name="com.mytest.unittest.SimpleTest" outfile="./testresult" />
+    </junit>
+    <fail message="test failed" if="test.failure" />
+</target>
+
+
 </project>

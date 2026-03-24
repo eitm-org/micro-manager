@@ -25,6 +25,8 @@ import org.micromanager.data.DataProvider;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Image;
 import org.micromanager.display.DataViewer;
+import javax.swing.JOptionPane;
+import java.io.File;
 
 // Imports for MMStudio internal packages
 // Plugins should not access internal packages, to ensure modularity and
@@ -37,10 +39,13 @@ public class FOVSymmetryFrame extends JFrame {
 
    private Studio studio_;
    private JTextField userText_;
+   private JTextField modelPathField_;
    private final JLabel imageInfoLabel_;
+   private final JLabel decisionLabel_;
    private final JLabel exposureTimeLabel_;
    private static Object FOVSymHandler_ = null;
    private DataProvider dataProvider_;
+   private FOVQualityDecisionFunction.FOVModel fovModel_;
 
    public FOVSymmetryFrame(Studio studio) {
       super("FOV Symmetry Plugin GUI");
@@ -71,10 +76,34 @@ public class FOVSymmetryFrame extends JFrame {
       });
       super.add(alertButton, "wrap");
 
+      // Model loading controls for FOV symmetry.
+      super.add(new JLabel("Model .mat path (or other model source):"));
+      modelPathField_ = new JTextField(30);
+      super.add(modelPathField_, "split");
+      JButton loadModelButton = new JButton("Load Model (stub)");
+      loadModelButton.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            String modelPath = modelPathField_.getText().trim();
+            if (modelPath.isEmpty()) {
+               JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
+                       "Please provide a model path.", "Load model", JOptionPane.WARNING_MESSAGE);
+               return;
+            }
+            // This code currently indicates loading is not implemented.
+            JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
+                    "Model loading from .mat is not implemented yet.\n" +
+                            "Please construct FOVQualityDecisionFunction.FOVModel directly", "Load model", JOptionPane.INFORMATION_MESSAGE);
+         }
+      });
+      super.add(loadModelButton, "wrap");
+
       // Snap an image, show the image in the Snap/Live view, and show some
       // stats on the image in our frame.
       imageInfoLabel_ = new JLabel();
       super.add(imageInfoLabel_, "growx, split, span");
+      decisionLabel_ = new JLabel("Decision: n/a");
+      super.add(decisionLabel_, "wrap");
       JButton snapButton = new JButton("Snap Image");
       snapButton.addActionListener(new ActionListener() {
          @Override
@@ -82,8 +111,25 @@ public class FOVSymmetryFrame extends JFrame {
             // Multiple images are returned only if there are multiple
             // cameras. We only care about the first image.
             List<Image> images = studio_.live().snap(true);
+            if (images.isEmpty()) {
+               JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
+                       "No image was captured", "Snap image", JOptionPane.WARNING_MESSAGE);
+               return;
+            }
             Image firstImage = images.get(0);
             showImageInfo(firstImage);
+            if (fovModel_ != null) {
+               try {
+                  char decision = FOVQualityDecisionFunction.evaluate(fovModel_, firstImage);
+                  decisionLabel_.setText("Decision: " + decision);
+               } catch (Exception ex) {
+                  decisionLabel_.setText("Decision: error");
+                  JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
+                          "Error during FOV decision evaluation: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+               }
+            } else {
+               decisionLabel_.setText("Decision: model not loaded");
+            }
          }
       });
       super.add(snapButton, "wrap");
