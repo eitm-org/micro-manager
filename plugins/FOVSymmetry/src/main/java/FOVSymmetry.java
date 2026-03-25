@@ -62,6 +62,7 @@ public class FOVSymmetry implements SciJavaPlugin, MenuPlugin {
       if (frame_ == null) {
          // We have never before shown our GUI, so now we need to create it.
          frame_ = new FOVSymmetryFrame(studio_);
+         //model_ = new FOVQualityDecisionFunction.FOVModel();
       }
       frame_.setVisible(true);
    }
@@ -80,21 +81,21 @@ public class FOVSymmetry implements SciJavaPlugin, MenuPlugin {
     */
    @Override
    public String getName() {
-      return "Example plugin";
+      return "FOV Symmetry detector";
    }
 
    @Override
    public String getHelpText() {
-      return "Help text to tell the user what the plugin does.";
+      return "Decide whether current FOV is good or bad based on symmetry of the image.";
    }
 
    @Override
    public String getVersion() {
-      return "2.0";
+      return "1.0";
    }
 
    @Override
    public String getCopyright() {
-      return "University of California, 2012-2015";
+      return "EMI LA 2026";
    }
 }

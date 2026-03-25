@@ -1,5 +1,11 @@
 package org.micromanager.plugins.fovsymmetry;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.micromanager.data.Image;
 
 public class FOVQualityDecisionFunction {
@@ -395,5 +401,130 @@ public class FOVQualityDecisionFunction {
    public static FOVModel loadModelFromMatFile(String modelMatPath) {
       throw new UnsupportedOperationException(".mat model loading is not implemented yet. " +
               "Use FOVModel constructor directly with vectors and parameters from your model.");
+   }
+
+    /**
+    * Load a FOVModel from a JSON file.
+    */
+   public static FOVModel loadModelFromJson(String jsonPath)
+           throws IOException {
+      String jsonContent = new String(Files.readAllBytes(Paths.get(jsonPath)));
+      return parseJsonModel(jsonContent);
+   }
+
+   /**
+    * Parse JSON string into FOVModel.
+    * Uses simple string parsing since we want minimal dependencies.
+    */
+   private static FOVModel parseJsonModel(String json) {
+      Map<String, Object> map = parseSimpleJson(json);
+
+      double thrComb = ((Number) map.get("thrComb")).doubleValue();
+      double bias = ((Number) map.get("bias")).doubleValue();
+      int nTileRows = ((Number) map.get("nTileRows")).intValue();
+      int nTileCols = ((Number) map.get("nTileCols")).intValue();
+      String modeStr = (String) map.get("modeStr");
+
+      double[] weights = parseDoubleArray((java.util.List<?>) map.get("weights"));
+      double[] muX = parseDoubleArray((java.util.List<?>) map.get("muX"));
+      double[] sigmaX = parseDoubleArray((java.util.List<?>) map.get("sigmaX"));
+
+      return new FOVModel(
+              thrComb, weights, bias,
+              muX, sigmaX,
+              nTileRows, nTileCols,
+              modeStr
+      );
+   }
+
+   /**
+    * Simple JSON parser for basic objects and arrays.
+    * Not a full JSON parser - handles the structure we need for the test model.
+    */
+   private static Map<String, Object> parseSimpleJson(String json) {
+      Map<String, Object> result = new HashMap<>();
+      
+      // Remove surrounding braces and whitespace
+      json = json.trim();
+      if (json.startsWith("{")) json = json.substring(1);
+      if (json.endsWith("}")) json = json.substring(0, json.length() - 1);
+      
+      String[] pairs = splitJsonPairs(json);
+      for (String pair : pairs) {
+         int colonIdx = pair.indexOf(':');
+         if (colonIdx > 0) {
+            String key = pair.substring(0, colonIdx).trim().replaceAll("^\"|\"$", "");
+            String value = pair.substring(colonIdx + 1).trim();
+            
+            if (value.startsWith("[")) {
+               // Parse array
+               value = value.substring(1);
+               if (value.endsWith("]")) value = value.substring(0, value.length() - 1);
+               java.util.List<Double> list = new java.util.ArrayList<>();
+               String[] elements = value.split(",");
+               for (String elem : elements) {
+                  String trimmed = elem.trim();
+                  if (!trimmed.isEmpty()) {
+                     list.add(Double.parseDouble(trimmed));
+                  }
+               }
+               result.put(key, list);
+            } else if (value.startsWith("\"")) {
+               // String value
+               result.put(key, value.replaceAll("^\"|\"$", ""));
+            } else {
+               // Try to parse as number
+               try {
+                  if (value.contains(".")) {
+                     result.put(key, Double.parseDouble(value));
+                  } else {
+                     result.put(key, Integer.parseInt(value));
+                  }
+               } catch (NumberFormatException e) {
+                  result.put(key, value);
+               }
+            }
+         }
+      }
+      return result;
+   }
+
+   /**
+    * Split JSON pairs while respecting nested structures.
+    */
+   private static String[] splitJsonPairs(String json) {
+      java.util.List<String> pairs = new java.util.ArrayList<>();
+      StringBuilder current = new StringBuilder();
+      int bracketDepth = 0;
+      int braceDepth = 0;
+      
+      for (char c : json.toCharArray()) {
+         if (c == '[') bracketDepth++;
+         else if (c == ']') bracketDepth--;
+         else if (c == '{') braceDepth++;
+         else if (c == '}') braceDepth--;
+         else if (c == ',' && bracketDepth == 0 && braceDepth == 0) {
+            pairs.add(current.toString());
+            current = new StringBuilder();
+            continue;
+         }
+         current.append(c);
+      }
+      if (current.length() > 0) {
+         pairs.add(current.toString());
+      }
+      return pairs.toArray(new String[0]);
+   }
+
+   /**
+    * Convert list to double array.
+    */
+   private static double[] parseDoubleArray(java.util.List<?> list) {
+      if (list == null) return new double[0];
+      double[] arr = new double[list.size()];
+      for (int i = 0; i < list.size(); i++) {
+         arr[i] = ((Number) list.get(i)).doubleValue();
+      }
+      return arr;
    }
 }
