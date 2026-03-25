@@ -39,7 +39,6 @@ import org.scijava.plugin.SciJavaPlugin;
 public class FOVSymmetry implements SciJavaPlugin, MenuPlugin {
    private Studio studio_;
    private FOVSymmetryFrame frame_;
-
    /**
     * This method receives the Studio object, which is the gateway to the
     * Micro-Manager API. You should retain a reference to this object for the
@@ -62,7 +61,6 @@ public class FOVSymmetry implements SciJavaPlugin, MenuPlugin {
       if (frame_ == null) {
          // We have never before shown our GUI, so now we need to create it.
          frame_ = new FOVSymmetryFrame(studio_);
-         //model_ = new FOVQualityDecisionFunction.FOVModel();
       }
       frame_.setVisible(true);
    }

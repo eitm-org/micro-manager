@@ -21,6 +21,7 @@ import org.micromanager.events.ExposureChangedEvent;
 import org.micromanager.internal.utils.WindowPositioning;
 import org.micromanager.events.LiveModeEvent;
 import ij.process.ImageProcessor;
+import org.micromanager.acquisition.AcquisitionStartedEvent;
 import org.micromanager.data.DataProvider;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Image;
@@ -40,104 +41,72 @@ public class FOVSymmetryFrame extends JFrame {
    private Studio studio_;
    private JTextField userText_;
    private JTextField modelPathField_;
-   private final JLabel imageInfoLabel_;
    private final JLabel decisionLabel_;
    private final JLabel exposureTimeLabel_;
    private static Object FOVSymHandler_ = null;
    private DataProvider dataProvider_;
    private FOVQualityDecisionFunction.FOVModel fovModel_;
 
+   // autoStart on new active window
+   private boolean autoStart_ = true;
+   // acquisition plot start on first image delivered.
+   private boolean delayedStart_ = false;
+   // A reference to the event handling (only?) instance
+   private static Object RThandler_ = null;
+
+
+   private static String modelPath_ = "C:\\Users\\AndreyAndreev\\Documents\\GitHub\\micro-manager-emi\\plugins\\FOVSymmetry\\src\\test\\resources\\test_fov_model.json";
    public FOVSymmetryFrame(Studio studio) {
       super("FOV Symmetry Plugin GUI");
       studio_ = studio;
+      if (RThandler_ == null) {
+         RThandler_ = this;
+      }
+      if (fovModel_ == null && modelPath_ != null) {
+         try {
+            fovModel_ = FOVQualityDecisionFunction.loadModelFromJson(modelPath_);
+         } catch (Exception ex) {
+            studio_.logs().logError("Failed to load FOV Symmetry model: " + ex.getMessage());
+         }
+      }
 
       super.setLayout(new MigLayout("fill, insets 2, gap 2, flowx"));
 
-      JLabel title = new JLabel("I'm an example plugin!");
+      JLabel title = new JLabel("FOV quality plugin");
       title.setFont(new Font("Arial", Font.BOLD, 14));
       super.add(title, "span, alignx center, wrap");
 
-      // Create a text field for the user to customize their alerts.
-      super.add(new JLabel("Alert text: "));
-      userText_ = new JTextField(30);
-      userText_.setText("Something happened!");
-      super.add(userText_);
-
-      JButton alertButton = new JButton("Alert me!");
-      // Clicking on this button will invoke the ActionListener, which in turn
-      // will show a text alert to the user.
-      alertButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            // Use the contents of userText_ as the text.
-            studio_.alerts().postAlert("Example Alert!",
-                  FOVSymmetryFrame.class, userText_.getText());
-         }
-      });
-      super.add(alertButton, "wrap");
-
       // Model loading controls for FOV symmetry.
-      super.add(new JLabel("Model .mat path (or other model source):"));
+      super.add(new JLabel("Filepath for model JSON:"));
       modelPathField_ = new JTextField(30);
+      if (modelPath_ != null) {
+         modelPathField_.setText(modelPath_);
+      }
       super.add(modelPathField_, "split");
-      JButton loadModelButton = new JButton("Load Model (stub)");
+      JButton loadModelButton = new JButton("Load Model");
       loadModelButton.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            String modelPath = modelPathField_.getText().trim();
-            if (modelPath.isEmpty()) {
+            String modelPath_ = modelPathField_.getText().trim();
+            if (modelPath_.isEmpty()) {
                JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
-                       "Please provide a model path.", "Load model", JOptionPane.WARNING_MESSAGE);
+                       "Please provide a filepath for the model.", "Load model", JOptionPane.WARNING_MESSAGE);
                return;
             }
-            // This code currently indicates loading is not implemented.
-            JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
-                    "Model loading from .mat is not implemented yet.\n" +
-                            "Please construct FOVQualityDecisionFunction.FOVModel directly", "Load model", JOptionPane.INFORMATION_MESSAGE);
+            try {
+               fovModel_ = FOVQualityDecisionFunction.loadModelFromJson(modelPath_);
+               decisionLabel_.setText("Model loaded successfully");
+            } catch (Exception ex) {
+               studio_.logs().logError("Failed to load FOV Symmetry model: " + ex.getMessage());
+            }
          }
       });
       super.add(loadModelButton, "wrap");
 
-      // Snap an image, show the image in the Snap/Live view, and show some
-      // stats on the image in our frame.
-      imageInfoLabel_ = new JLabel();
-      super.add(imageInfoLabel_, "growx, split, span");
       decisionLabel_ = new JLabel("Decision: n/a");
       super.add(decisionLabel_, "wrap");
-      JButton snapButton = new JButton("Snap Image");
-      snapButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            // Multiple images are returned only if there are multiple
-            // cameras. We only care about the first image.
-            List<Image> images = studio_.live().snap(true);
-            if (images.isEmpty()) {
-               JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
-                       "No image was captured", "Snap image", JOptionPane.WARNING_MESSAGE);
-               return;
-            }
-            Image firstImage = images.get(0);
-            showImageInfo(firstImage);
-            if (fovModel_ != null) {
-               try {
-                  char decision = FOVQualityDecisionFunction.evaluate(fovModel_, firstImage);
-                  decisionLabel_.setText("Decision: " + decision);
-               } catch (Exception ex) {
-                  decisionLabel_.setText("Decision: error");
-                  JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
-                          "Error during FOV decision evaluation: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-               }
-            } else {
-               decisionLabel_.setText("Decision: model not loaded");
-            }
-         }
-      });
-      super.add(snapButton, "wrap");
 
-      exposureTimeLabel_ = new JLabel("");
-      super.add(exposureTimeLabel_, "split, span, growx");
-
-           super.setIconImage(Toolkit.getDefaultToolkit().getImage(
+      super.setIconImage(Toolkit.getDefaultToolkit().getImage(
             getClass().getResource("/org/micromanager/icons/microscope.gif")));
       super.setLocation(100, 100);
       WindowPositioning.setUpLocationMemory(this, this.getClass(), null);
@@ -162,21 +131,40 @@ public class FOVSymmetryFrame extends JFrame {
       }
       dataProvider_ = viewer.getDataProvider();
 
-      updateSymmetryValue();
+      if (!delayedStart_) {
+         decisionLabel_.setText("Waiting for images...");
+         dataProvider_.registerForEvents(RThandler_); 
+      } else {
+         delayedStart_ = false;
+      }
    }
-   private void updateSymmetryValue() {
-      // Do something to update the symmetry value.
+
+   @Subscribe
+   public void onNewAcquisition(AcquisitionStartedEvent event) {
+      if (!autoStart_) {
+         return;
+      }
+      delayedStart_ = true;
+      event.getDatastore().registerForEvents(RThandler_);
    }
-   /**
-    * Display some information on the data in the provided image.
-    */
-   private void showImageInfo(Image image) {
-      // See DisplayManager for information on these parameters.
-      //HistogramData data = studio_.displays().calculateHistogram(
-      //   image, 0, 16, 16, 0, true);
-      imageInfoLabel_.setText(String.format(
-            "Image size: %dx%d", // min: %d, max: %d, mean: %d, std: %.2f",
-            image.getWidth(), image.getHeight())); //, data.getMinVal(),
-      //data.getMaxVal(), data.getMean(), data.getStdDev()));
+
+   @Subscribe
+   public void onNewImage(DataProviderHasNewImageEvent event) {
+      processImage(event.getDataProvider(), event.getImage());
+   }
+
+   private void processImage(DataProvider dp, Image image) {
+      if (fovModel_ != null) {
+         try {
+            char decision = FOVQualityDecisionFunction.evaluate(fovModel_, image);
+            decisionLabel_.setText("Decision: " + (decision == 'g' ? "👍" : "👎" ));
+         } catch (Exception ex) {
+            decisionLabel_.setText("Decision: error");
+            JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
+                     "Error during FOV decision evaluation: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+         }
+      } else {
+         decisionLabel_.setText("Decision: model not loaded");
+      }
    }
 }
