@@ -123,12 +123,12 @@ public class FOVSymmetryFrame extends JFrame {
 
 
       try {
-         iconOff_ = new ImageIcon(getClass().getResource("/org/micromanager/icons/off-bulb.png"));
+         iconOff_ = new ImageIcon(getClass().getResource("/off-bulb.png"));
       } catch (Exception ex) {
          studio_.logs().logError("Failed to load icon: " + ex.getMessage());
       }
       try {
-         iconOn_ = new ImageIcon(getClass().getResource("/org/micromanager/icons/on-bulb.png"));
+         iconOn_ = new ImageIcon(getClass().getResource("/on-bulb.png"));
       } catch (Exception ex) {
          studio_.logs().logError("Failed to load icon: " + ex.getMessage());
       }
