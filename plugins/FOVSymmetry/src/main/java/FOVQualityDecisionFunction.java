@@ -395,14 +395,6 @@ public class FOVQualityDecisionFunction {
       return count > 0 ? sum / count : 0.0;
    }
 
-   /**
-    * Placeholder for .mat loading if a MAT-file parser is added.
-    */
-   public static FOVModel loadModelFromMatFile(String modelMatPath) {
-      throw new UnsupportedOperationException(".mat model loading is not implemented yet. " +
-              "Use FOVModel constructor directly with vectors and parameters from your model.");
-   }
-
     /**
     * Load a FOVModel from a JSON file.
     */

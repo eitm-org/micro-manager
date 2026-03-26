@@ -7,10 +7,12 @@ package org.micromanager.plugins.fovsymmetry;
 import com.google.common.eventbus.Subscribe;
 import java.awt.Font;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
+import java.io.File;
 import java.util.List;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
@@ -42,13 +44,15 @@ public class FOVSymmetryFrame extends JFrame {
    private JTextField userText_;
    private JTextField modelPathField_;
    private final JLabel decisionLabel_;
-   private final JLabel exposureTimeLabel_;
    private static Object FOVSymHandler_ = null;
    private DataProvider dataProvider_;
    private FOVQualityDecisionFunction.FOVModel fovModel_;
-
+   private final JLabel iconLabel_;
+   private ImageIcon iconOn_;
+   private ImageIcon iconOff_;
+   
    // autoStart on new active window
-   private boolean autoStart_ = true;
+   private boolean enabled_ = true;
    // acquisition plot start on first image delivered.
    private boolean delayedStart_ = false;
    // A reference to the event handling (only?) instance
@@ -78,7 +82,7 @@ public class FOVSymmetryFrame extends JFrame {
 
       // Model loading controls for FOV symmetry.
       super.add(new JLabel("Filepath for model JSON:"));
-      modelPathField_ = new JTextField(30);
+      modelPathField_ = new JTextField(15);
       if (modelPath_ != null) {
          modelPathField_.setText(modelPath_);
       }
@@ -103,11 +107,40 @@ public class FOVSymmetryFrame extends JFrame {
       });
       super.add(loadModelButton, "wrap");
 
+      JCheckBox enabledCheckBox_ = new JCheckBox("Enable FOV evaluation");
+
+      // Set initial state
+      enabledCheckBox_.setSelected(enabled_);
+
+      // Add listener to update variable
+      enabledCheckBox_.addItemListener(new ItemListener() {
+         @Override
+         public void itemStateChanged(ItemEvent e) {
+               enabled_ = (e.getStateChange() == ItemEvent.SELECTED);
+         }
+      });
+      super.add(enabledCheckBox_, "wrap");
+
+
+      try {
+         iconOff_ = new ImageIcon(getClass().getResource("/org/micromanager/icons/off-bulb.png"));
+      } catch (Exception ex) {
+         studio_.logs().logError("Failed to load icon: " + ex.getMessage());
+      }
+      try {
+         iconOn_ = new ImageIcon(getClass().getResource("/org/micromanager/icons/on-bulb.png"));
+      } catch (Exception ex) {
+         studio_.logs().logError("Failed to load icon: " + ex.getMessage());
+      }
+
+      iconLabel_ = new JLabel(iconOff_);
+      super.add(iconLabel_, "wrap");
+
       decisionLabel_ = new JLabel("Decision: n/a");
       super.add(decisionLabel_, "wrap");
 
       super.setIconImage(Toolkit.getDefaultToolkit().getImage(
-            getClass().getResource("/org/micromanager/icons/microscope.gif")));
+            this.getClass().getResource("/org/micromanager/icons/microscope.gif")));
       super.setLocation(100, 100);
       WindowPositioning.setUpLocationMemory(this, this.getClass(), null);
 
@@ -141,7 +174,7 @@ public class FOVSymmetryFrame extends JFrame {
 
    @Subscribe
    public void onNewAcquisition(AcquisitionStartedEvent event) {
-      if (!autoStart_) {
+      if (!enabled_) {
          return;
       }
       delayedStart_ = true;
@@ -156,8 +189,16 @@ public class FOVSymmetryFrame extends JFrame {
    private void processImage(DataProvider dp, Image image) {
       if (fovModel_ != null) {
          try {
-            char decision = FOVQualityDecisionFunction.evaluate(fovModel_, image);
-            decisionLabel_.setText("Decision: " + (decision == 'g' ? "👍" : "👎" ));
+            if(enabled_){
+               char decision = FOVQualityDecisionFunction.evaluate(fovModel_, image);
+               decisionLabel_.setText("Decision: " + decision);
+               if (decision == 'g') {
+                  iconLabel_.setIcon(iconOn_);
+               } else {
+                  iconLabel_.setIcon(iconOff_);
+               }
+            }
+
          } catch (Exception ex) {
             decisionLabel_.setText("Decision: error");
             JOptionPane.showMessageDialog(FOVSymmetryFrame.this,
@@ -167,4 +208,5 @@ public class FOVSymmetryFrame extends JFrame {
          decisionLabel_.setText("Decision: model not loaded");
       }
    }
+   
 }
