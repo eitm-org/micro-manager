@@ -57,6 +57,7 @@ public class FOVSymmetryFrame extends JFrame {
    private boolean delayedStart_ = false;
    // A reference to the event handling (only?) instance
    private static Object RThandler_ = null;
+   private long lastProcessedTime_ = 0;
 
 
    private static String modelPath_ = "C:\\Users\\AndreyAndreev\\Documents\\GitHub\\micro-manager-emi\\plugins\\FOVSymmetry\\src\\test\\resources\\test_fov_model.json";
@@ -69,6 +70,7 @@ public class FOVSymmetryFrame extends JFrame {
       if (fovModel_ == null && modelPath_ != null) {
          try {
             fovModel_ = FOVQualityDecisionFunction.loadModelFromJson(modelPath_);
+            fovModel_.validate();
          } catch (Exception ex) {
             studio_.logs().logError("Failed to load FOV Symmetry model: " + ex.getMessage());
          }
@@ -99,6 +101,7 @@ public class FOVSymmetryFrame extends JFrame {
             }
             try {
                fovModel_ = FOVQualityDecisionFunction.loadModelFromJson(modelPath_);
+               fovModel_.validate();
                decisionLabel_.setText("Model loaded successfully");
             } catch (Exception ex) {
                studio_.logs().logError("Failed to load FOV Symmetry model: " + ex.getMessage());
@@ -183,13 +186,17 @@ public class FOVSymmetryFrame extends JFrame {
 
    @Subscribe
    public void onNewImage(DataProviderHasNewImageEvent event) {
-      processImage(event.getDataProvider(), event.getImage());
+      long currentTime = System.currentTimeMillis();
+      if (currentTime - lastProcessedTime_ >= 1000) {
+         processImage(event.getDataProvider(), event.getImage());
+         lastProcessedTime_ = currentTime;
+      }
    }
 
    private void processImage(DataProvider dp, Image image) {
       if (fovModel_ != null) {
          try {
-            if(enabled_){
+            if(enabled_) {
                char decision = FOVQualityDecisionFunction.evaluate(fovModel_, image);
                decisionLabel_.setText("Decision: " + decision);
                if (decision == 'g') {
