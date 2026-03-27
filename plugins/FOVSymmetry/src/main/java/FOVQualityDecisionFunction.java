@@ -1,3 +1,8 @@
+// FOVSymmetry plugin for Micro-Manager
+// Evaluates field of view quality based on a decision function derived from a MATLAB model.
+// Copyright (C) 2026 Andrey Andreev, Soheil Soltani, EMI LA
+
+
 package org.micromanager.plugins.fovsymmetry;
 
 import java.io.IOException;
