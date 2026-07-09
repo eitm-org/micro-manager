@@ -113,6 +113,7 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
    private long nextWakeTime_ = -1;
    private long lastFrameIndex_ = -1;
    private ArrayList<RunnablePlusIndices> runnables_ = new ArrayList<>();
+   private boolean autofocusEveryChannel_ = false;
 
    private class RunnablePlusIndices {
       int channel_;
@@ -227,10 +228,6 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
             sb.slicesFirst(false);
             break;
          case AcqOrderMode.POS_TIME_CHANNEL_SLICE:
-            sb.timeFirst(true);
-            sb.slicesFirst(true);
-            break;
-         case AcqOrderMode.POS_CHANNEL_SLICE_TIME:
             sb.timeFirst(true);
             sb.slicesFirst(true);
             break;
@@ -734,21 +731,8 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
          if (acquisitionSettings.useChannels()) {
             acqFunctions.add(channels);
          }
-      } else if(acquisitionSettings.acqOrderMode() == AcqOrderMode.POS_CHANNEL_SLICE_TIME){
-         if (acquisitionSettings.usePositionList()) {
-            acqFunctions.add(positions);
-         }
-         if (acquisitionSettings.useChannels()) {
-            acqFunctions.add(channels);
-         }
-         if (acquisitionSettings.useSlices()) {
-            acqFunctions.add(zStack);
-         }
-         if (acquisitionSettings.useFrames()) {
-            acqFunctions.add(timelapse);
-         }
-      }else {
-         throw new RuntimeException("Unknown acquisition order " + acquisitionSettings.acqOrderMode());
+      } else {
+         throw new RuntimeException("Unknown acquisition order");
       }
 
       AcquisitionEvent baseEvent = new AcquisitionEvent(currentAcquisition_);
@@ -880,6 +864,11 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
       };
    }
 
+   @Override
+   public void setAutofocusEveryChannel(boolean enabled) {
+        autofocusEveryChannel_ = enabled;
+   }
+
    /**
     * Hook function executing (software) autofocus.  When autofocus is checked in the MDA,
     * the autofocus should run before each channel / Z Stack combo (i.e. at each time point
@@ -892,7 +881,9 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
 
          @Override
          public AcquisitionEvent run(AcquisitionEvent event) {
-            studio_.logs().logError("Autofocus hook called for event: " + event);
+            // print message using core logMessage:
+            studio_.core().logMessage("Running autofocus hook...");
+
             if (!event.isAcquisitionFinishedEvent()
                   && (event.getZIndex() == null || event.getZIndex() == 0)){
                   //&& (event.getAxisPosition(AcqEngMetadata.CHANNEL_AXIS) == null
@@ -902,36 +893,41 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                   return event;
                }
                try {
-                  //studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
-                  AutofocusPlugin af = studio_.getAutofocusManager().getAutofocusMethod();
+                  if(autofocusEveryChannel_){
+                     AutofocusPlugin af = studio_.getAutofocusManager().getAutofocusMethod();
 
-                  String channel = event.getConfigPreset();
-                  studio_.core().logMessage("channel is " + channel);
+                     String channel = event.getConfigPreset();
+                     studio_.core().logMessage("channel is " + channel);
 
-                  if (channel != null) {
-                      af.setPropertyValue("Channel", channel);
+                     if (channel != null) {
+                        af.setPropertyValue("Channel", channel);
+                     }
+
+                     af.fullFocus();
+                  }
+                  else{
+                     studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
                   }
 
-                  
-                  Double focusZ = af.fullFocus();
-                  studio_.core().setPosition(focusZ);
-                  studio_.core().waitForDevice(studio_.core().getFocusDevice());
-                  studio_.logs().logMessage("   Autofocus best Z + AF offset= " + focusZ);
-                  studio_.core().updateSystemStateCache();
 
                   String posName = event.getTags().get(AcqEngMetadata.POS_NAME);
                   if (posName != null) {
                      MultiStagePosition msp = new MultiStagePosition();
                      msp.setLabel(posName);
                      for (String deviceName : event.getStageDeviceNames()) {
-                        Double stage_pos = core_.getPosition(deviceName);
-                        msp.add(StagePosition.create1D(deviceName, stage_pos));
-                        studio_.logs().logMessage("   Autofocus moved stage " + deviceName + " to position " + stage_pos);
+                        msp.add(StagePosition.create1D(deviceName, core_.getPosition(deviceName)));
                      }
                      positionMap_.put(posName, msp);
                   }
                   // TODO: Read back the position of the focus drive, and somehow perpetuate it back
                   // to the StagePositionList that is in use.
+
+                  // Double focusZ = af.fullFocus();
+                  // studio_.core().setPosition(focusZ);
+                  // studio_.core().waitForDevice(studio_.core().getFocusDevice());
+                  // studio_.logs().logMessage("   Autofocus best Z + AF offset= " + focusZ);
+                  // studio_.core().updateSystemStateCache();
+
                } catch (Exception ex) {
                   studio_.logs().logError(ex, "Failed to autofocus.");
                }
@@ -1847,23 +1843,6 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
             || sequenceSettings_.useChannels()
             || sequenceSettings_.useSlices()) {
          StringBuilder order = new StringBuilder("\nOrder: ");
-
-         if(sequenceSettings_.acqOrderMode() == AcqOrderMode.POS_CHANNEL_SLICE_TIME){
-            if(sequenceSettings_.usePositionList()){
-               order.append("Position, ");
-            }
-            if(sequenceSettings_.useChannels()){
-               order.append("Channel, ");
-            }
-            if(sequenceSettings_.useSlices()){
-               order.append("Slice, ");
-            }
-            if(sequenceSettings_.useFrames()){
-               order.append("Time");
-            }
-            return txt + order.toString();
-         }
-
          if (sequenceSettings_.useFrames() && sequenceSettings_.usePositionList()) {
             if (sequenceSettings_.acqOrderMode() == AcqOrderMode.TIME_POS_CHANNEL_SLICE
                   || sequenceSettings_.acqOrderMode() == AcqOrderMode.TIME_POS_SLICE_CHANNEL) {
