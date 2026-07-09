@@ -208,6 +208,8 @@ public class OughtaFocus extends AutofocusBase implements AutofocusPlugin, SciJa
       }
       final double z = focusOptimizer_.runAutofocusAlgorithm() + offsetFromFocusPosition_;
       core.setPosition(zDrive_, z);
+
+      // revert settings
       if (keepShutterOpen_) {  // revert shutter state
          core.setAutoShutter(oldAutoShutter);
          core.setShutterOpen(oldShutter);  
