@@ -125,7 +125,7 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
    }
 
    private static String propertyLabelFor(String channel) {
-      return channel + " (Zmin, Zmax, Exposure)";
+      return channel + " (Zmin, Zmax, Exposure, DeltaZ)";
    }
 
    /**
@@ -133,11 +133,11 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
     *
     */
    public TCAAutofocus() {
-      channelSettings_.put("300nm", new ChannelSettings(-80.0, 40.0, 100));
-      channelSettings_.put("460nm", new ChannelSettings(-10.0, 10.0, 100));
-      channelSettings_.put("600nm", new ChannelSettings(5.0, 15.0, 100));
-      channelSettings_.put("NADH",  new ChannelSettings(-10.0, 10.0, 100));
-      channelSettings_.put("FAD",   new ChannelSettings(-10.0, 10.0, 100));
+      channelSettings_.put("300nm", new ChannelSettings(-80.0, 40.0, 100, 1.0));
+      channelSettings_.put("460nm", new ChannelSettings(-10.0, 10.0, 100, 1.0));
+      channelSettings_.put("600nm", new ChannelSettings(5.0, 15.0, 100, 1.0));
+      channelSettings_.put("NADH",  new ChannelSettings(-10.0, 10.0, 100, 1.0));
+      channelSettings_.put("FAD",   new ChannelSettings(-10.0, 10.0, 100, 1.0));
 
       super.createProperty(KEY_CHANNEL, channel_);
       super.createProperty(KEY_FOCUS_ANALYZER, FOCUS_ANALYZER_STRINGS[0], FOCUS_ANALYZER_STRINGS);
@@ -228,30 +228,33 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
       double relZMin;
       double relZMax;
       double exposure;
+      double deltaZ;
 
-      ChannelSettings(double relZMin, double relZMax, double exposure) {
+      ChannelSettings(double relZMin, double relZMax, double exposure, double deltaZ) {
          this.relZMin = relZMin;
          this.relZMax = relZMax;
          this.exposure = exposure;
+         this.deltaZ = deltaZ;
       }
    }
 
    private final LinkedHashMap<String, ChannelSettings> channelSettings_ = new LinkedHashMap<>();
 
    private static String formatChannelSettings(ChannelSettings cs) {
-      return cs.relZMin + "," + cs.relZMax + "," + cs.exposure;
+      return cs.relZMin + "," + cs.relZMax + "," + cs.exposure + "," + cs.deltaZ;
    }
 
    private static ChannelSettings parseChannelSettings(String value) {
       String[] parts = value.split(",");
-      if (parts.length != 3) {
+      if (parts.length != 4) {
          throw new IllegalArgumentException(
-               "Expected \"Z min,Z max,Exposure\" but got: " + value);
+               "Expected \"Z min,Z max,Exposure,Delta Z\" but got: " + value);
       }
       return new ChannelSettings(
             Double.parseDouble(parts[0].trim()),
             Double.parseDouble(parts[1].trim()),
-            Double.parseDouble(parts[2].trim()));
+            Double.parseDouble(parts[2].trim()),
+            Double.parseDouble(parts[3].trim()));
    }
    
 
@@ -289,8 +292,10 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
       rel_z_max_ = cs.relZMax;
       focusAnalyzer_ = channel_;
       exposure_ = cs.exposure;
+      deltaz_ = cs.deltaZ;
 
-      IJ.log("Selected channel: " + channel_ + ", using exposure: " + exposure_ + " ms, "+ "focus analyzer: " + focusAnalyzer_  + ", Z range: [" + rel_z_min_ + ", " + rel_z_max_ + "]");
+      IJ.log("Selected channel: " + channel_ + ", using exposure: " + exposure_ + " ms, "+ "focus analyzer: " + focusAnalyzer_  + ", Z range: [" + rel_z_min_ + ", " + rel_z_max_ + "], Delta Z: " + deltaz_);
+      
       core_.setExposure(exposure_);
       //######################## START THE ROUTINE ###########
       core_.sleep(500); // wait for 500 ms to allow the stage movement change to take effect
