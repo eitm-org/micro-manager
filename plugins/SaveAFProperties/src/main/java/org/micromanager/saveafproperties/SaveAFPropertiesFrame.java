@@ -3,6 +3,8 @@ package org.micromanager.saveafproperties;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.io.File;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -185,7 +187,22 @@ public class SaveAFPropertiesFrame extends JDialog {
 
    private void saveFile() {
       JFileChooser fileChooser = new JFileChooser();
+      
+      String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+      AutofocusPlugin autofocus = studio_.getAutofocusManager().getAutofocusMethod();
 
+      String pluginName = "Autofocus";
+
+      if (autofocus != null) {
+        pluginName = autofocus.getName();
+      }
+
+      pluginName = pluginName.replaceAll("[\\\\/:*?\"<>|]", "_");
+
+      String defaultFileName = date + "_" + pluginName + "_Parameters.xml";
+      
+      fileChooser.setSelectedFile(new File(defaultFileName));
+      
       int result =fileChooser.showSaveDialog(this);
 
       if (result == JFileChooser.APPROVE_OPTION) {
