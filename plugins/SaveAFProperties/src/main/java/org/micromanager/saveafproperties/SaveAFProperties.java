@@ -64,7 +64,7 @@ public class SaveAFProperties implements SciJavaPlugin, MenuPlugin {
     */
    @Override
    public String getSubMenu() {
-      return "Save AF Properties";
+      return "";
    }
 
    /**
