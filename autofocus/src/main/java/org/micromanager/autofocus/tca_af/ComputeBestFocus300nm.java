@@ -222,9 +222,13 @@ public class ComputeBestFocus300nm {
     /**
      * Main computation method
      */
-    public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
-        Settings settings = new Settings();
 
+    public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
+        // Overload method
+        return computeBestFocus(imageArray, z_ini, deltaz_samp, zSampled, new Settings());
+    }
+
+    public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled, Settings settings) {
         // Input checks
         if (imageArray == null || imageArray.isEmpty()) {
             throw new IllegalArgumentException("imageArray must be a non-empty list.");
