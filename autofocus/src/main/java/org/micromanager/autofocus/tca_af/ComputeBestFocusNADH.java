@@ -172,10 +172,12 @@ public class ComputeBestFocusNADH {
      * @return Results struct
      */
 
-    public static Results compute(List<ImageProcessor> imageArray, double zIni, double deltazSamp, double[] zSampled) {
+    public static Results compute(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
+        // Overload method 
+        return compute(imageArray, z_ini, deltaz_samp, zSampled, new Settings());
+    }
 
-
-        Settings s = new Settings();
+    public static Results compute(List<ImageProcessor> imageArray, double zIni, double deltazSamp, double[] zSampled, Settings s) {
         // --- Input checks ---
         if (imageArray == null || imageArray.isEmpty()) {
             throw new IllegalArgumentException("imageArray must be a non-empty list.");
