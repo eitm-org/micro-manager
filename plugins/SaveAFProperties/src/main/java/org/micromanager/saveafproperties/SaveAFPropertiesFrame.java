@@ -138,6 +138,8 @@ public class SaveAFPropertiesFrame extends JDialog {
         NodeList propertyNodes =
                 root.getElementsByTagName("property");
 
+        String currentMethodName = autofocus.getName();
+        studio_.getAutofocusManager().refresh();
 
         for (int i = 0;
             i < propertyNodes.getLength();
@@ -160,9 +162,12 @@ public class SaveAFPropertiesFrame extends JDialog {
                 value);
         }
 
-        // Update AF plugin's internal variables
-
+        // Update AF plugin's internal variables, refresh manager and reselect current method
         autofocus.applySettings();
+        autofocus.saveSettings();
+        studio_.getAutofocusManager().refresh();
+        studio_.getAutofocusManager().setAutofocusMethodByName(currentMethodName);
+        studio_.app().refreshGUI();
 
         System.out.println( "Properties after loading:");
 
@@ -213,8 +218,26 @@ public class SaveAFPropertiesFrame extends JDialog {
            file = new File( file.getAbsolutePath() + ".xml");
         }
 
-        filePathLabel_.setText( file.getAbsolutePath());
+        // Handle the case where the file already exists
+        String fullPath = file.getAbsolutePath();
+        String basePath = fullPath;
+        String extension = "";
 
+        // Strip and save file extension (xml)
+        int dotIndex = fullPath.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex > fullPath.lastIndexOf(File.separatorChar)) {
+            basePath = fullPath.substring(0, dotIndex);
+            extension = fullPath.substring(dotIndex);
+        }
+
+        // Add counter to base path
+        int counter = 2;
+        while (file.exists()) {
+            file = new File(basePath + "_" + counter + extension);
+            counter++;
+        }
+
+        filePathLabel_.setText( file.getAbsolutePath());
         saveAFProperties(file);
       }
    }
