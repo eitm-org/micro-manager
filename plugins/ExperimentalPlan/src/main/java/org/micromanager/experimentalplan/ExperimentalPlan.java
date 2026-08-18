@@ -62,7 +62,7 @@ public class ExperimentalPlan implements SciJavaPlugin, MenuPlugin {
     */
    @Override
    public String getSubMenu() {
-      return "Experimental Plan";
+      return "";
    }
 
    /**

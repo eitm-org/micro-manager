@@ -13,6 +13,12 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import java.io.File;
+import java.util.List;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+
 public class ExperimentalPlanFrame extends JDialog{
     private final Studio studio_;
 
@@ -20,11 +26,14 @@ public class ExperimentalPlanFrame extends JDialog{
     private JButton refreshButton_;
     private JButton changeLinkButton_;
 
+    private final ExperimentParser experimentParser_;
     private JComboBox<String> experimentComboBox_;
 
     public ExperimentalPlanFrame(Studio studio) {
 
         studio_ = studio;
+
+        experimentParser_ = new ExperimentParser();
 
         setTitle("CAI Experiment ID");
 
@@ -57,13 +66,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
         controlsPanel.add(new JLabel("Planned experiments:"),gbc);
 
-        experimentComboBox_ = new JComboBox<>(
-            new String[] {
-                "TCA-2026-60",
-                "TCA-2026-59",
-                "TCA-2026-58"
-            }
-        );
+        experimentComboBox_ = new JComboBox<>();
 
         gbc.gridx = 0;
         gbc.gridy = 1;
@@ -80,6 +83,7 @@ public class ExperimentalPlanFrame extends JDialog{
         controlsPanel.add(applyButton_, gbc);
 
         refreshButton_ = new JButton("<html>Refresh list of<br>Experiment IDs</html>");
+        refreshButton_.addActionListener(e -> refreshExperiments());
 
         gbc.gridx = 2;
         gbc.gridy = 0;
@@ -103,4 +107,75 @@ public class ExperimentalPlanFrame extends JDialog{
 
         add(mainPanel);
    }
+
+    private void refreshExperiments() {
+
+        JOptionPane.showMessageDialog(
+            this,
+            "1. Refresh clicked"
+        );
+
+        JFileChooser fileChooser = new JFileChooser();
+
+        int result = fileChooser.showOpenDialog(this);
+
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File excelFile = fileChooser.getSelectedFile();
+
+        JOptionPane.showMessageDialog(
+            this,
+            "2. File selected:\n" + excelFile.getName()
+        );
+
+        try {
+
+            JOptionPane.showMessageDialog(
+                this,
+                "3. About to call parser"
+            );
+
+            List<String> experimentIds =
+                experimentParser_.parse(excelFile);
+
+            JOptionPane.showMessageDialog(
+                this,
+                "4. Parser finished!\n\n"
+                + experimentIds
+            );
+
+            updateExperimentList(experimentIds);
+
+            JOptionPane.showMessageDialog(
+                this,
+                "5. Dropdown updated!"
+            );
+
+        }
+        catch (Throwable e) {
+
+            JOptionPane.showMessageDialog(
+                this,
+                "ERROR:\n\n"
+                + e.toString()
+                + "\n\n"
+                + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE
+            );
+
+            e.printStackTrace();
+        }
+    }
+
+    private void updateExperimentList(List<String> experimentIds) {
+
+        experimentComboBox_.removeAllItems();
+
+        for (String experimentId : experimentIds) {
+            experimentComboBox_.addItem(experimentId);
+        }
+    }
 }
