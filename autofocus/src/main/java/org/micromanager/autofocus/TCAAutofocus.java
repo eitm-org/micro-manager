@@ -215,7 +215,6 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
          super.createProperty(propertyLabelFor(channel), formatChannelSettings(channelSettings_.get(channel)));
       }
 
-      super.createProperty(KEY_DELTA_Z, Double.toString(deltaz_));
       super.createProperty(KEY_DRYRUN, SHOWVALUES[1], SHOWVALUES);
       super.createProperty(SAVE_CSV, "Yes", new String[] {"Yes", "No"});
 
@@ -250,7 +249,6 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
    @Override
    public void applySettings() {
       try {
-         deltaz_ = Double.parseDouble(getPropertyValue(KEY_DELTA_Z));
          channel_ = getPropertyValue(KEY_CHANNEL);
          dryrun_ = getPropertyValue(KEY_DRYRUN).contentEquals("Yes");
          focusAnalyzer_ = getPropertyValue(KEY_FOCUS_ANALYZER);
