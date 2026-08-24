@@ -35,6 +35,7 @@ public class SaveAFPropertiesFrame extends JDialog {
    private final Studio studio_;
 
    private JLabel filePathLabel_;
+   private JLabel fileLabel_;
 
    private JButton loadButton_;
    private JButton saveButton_;
@@ -60,11 +61,10 @@ public class SaveAFPropertiesFrame extends JDialog {
 
       JPanel filePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-      JLabel fileLabel = new JLabel("File:");
-
+      fileLabel_ = new JLabel("File:");
       filePathLabel_ = new JLabel("No file selected");
 
-      filePanel.add(fileLabel);
+      filePanel.add(fileLabel_);
       filePanel.add(filePathLabel_);
 
       JPanel buttonPanel = new JPanel(new FlowLayout());
@@ -97,6 +97,7 @@ public class SaveAFPropertiesFrame extends JDialog {
             File file = fileChooser.getSelectedFile();
 
             filePathLabel_.setText(file.getAbsolutePath());
+            fileLabel_.setText("Settings loaded from:");
 
             loadAFProperties(file);
         }
@@ -239,7 +240,9 @@ public class SaveAFPropertiesFrame extends JDialog {
             counter++;
         }
 
-        filePathLabel_.setText( file.getAbsolutePath());
+        filePathLabel_.setText(file.getAbsolutePath());
+        fileLabel_.setText("Settings saved as:");
+
         saveAFProperties(file);
       }
    }
