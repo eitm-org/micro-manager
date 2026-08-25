@@ -221,8 +221,16 @@ public class ComputeBestFocus600nm {
             double deltaz_samp,
             double[] zSampledInput
     ) {
+        return computeBestFocus(imageArray, z_ini, deltaz_samp, zSampledInput, new Settings());
+    }
 
-        Settings settings = new Settings();
+    public static Results computeBestFocus(
+            List<ImageProcessor> imageArray,
+            double z_ini,
+            double deltaz_samp,
+            double[] zSampledInput,
+            Settings settings
+    ) {
 
         if (imageArray == null || imageArray.isEmpty()) {
             throw new IllegalArgumentException("imageArray must be a non-empty list.");
