@@ -40,7 +40,6 @@ public class ExperimentalPlan implements SciJavaPlugin, MenuPlugin {
         studio_ = studio;
     }
 
-
    /**
     * This method is called when your plugin is selected from the Plugins menu.
     * Typically at this time you should show a GUI (graphical user interface)

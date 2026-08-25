@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JOptionPane;
+
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -14,43 +16,31 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 public class ExperimentParser {
 
+    // reads the experimental plans excel file and returns a list of experiment IDs that are marked as "Planned"
     public List<String> parse(File excelFile) throws IOException {
-
-        System.out.println("PARSER STARTED");
-        System.out.println("FILE: " + excelFile.getAbsolutePath());
 
         List<String> experimentIds = new ArrayList<>();
 
+        // open excel and create an Apache POI Workbook
         try (FileInputStream input = new FileInputStream(excelFile);
             Workbook workbook = WorkbookFactory.create(input)) {
 
-            System.out.println("WORKBOOK OPENED");
-            System.out.println("NUMBER OF SHEETS: "
-                + workbook.getNumberOfSheets());
-
-            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-                System.out.println(
-                    "SHEET " + i + ": "
-                    + workbook.getSheetName(i)
-                );
-            }
-
-            Sheet sheet =
-                workbook.getSheet("Experiment Dashboard");
+            // sheet with all experiments
+            Sheet sheet = workbook.getSheet("Experiment Dashboard");
 
             if (sheet == null) {
-                throw new IOException(
-                    "Could not find sheet: Experiment Dashboard"
-                );
+                throw new IOException( "Could not find sheet: Experiment Dashboard" );
             }
-
-            System.out.println("SHEET FOUND");
 
             DataFormatter formatter = new DataFormatter();
 
-            for (int rowNumber = 1;
-                rowNumber <= sheet.getLastRowNum();
-                rowNumber++) {
+            // experiment ID is column A
+            int experimentIdColumn = 0;
+
+            // status is column B
+            int statusColumn = 1;
+
+            for (int rowNumber = 1; rowNumber <= sheet.getLastRowNum(); rowNumber++) {
 
                 Row row = sheet.getRow(rowNumber);
 
@@ -58,24 +48,15 @@ public class ExperimentParser {
                     continue;
                 }
 
-                String experimentId =
-                    formatter.formatCellValue(
-                        row.getCell(0)
-                    ).trim();
+                String experimentId = formatter.formatCellValue( row.getCell(experimentIdColumn) ).trim();
 
-                System.out.println(
-                    "ROW " + rowNumber
-                    + " = [" + experimentId + "]"
-                );
+                String status = formatter.formatCellValue( row.getCell(statusColumn) ).trim();
 
-                if (!experimentId.isEmpty()) {
+                if (!experimentId.isEmpty() && status.equalsIgnoreCase("Planned")) {
                     experimentIds.add(experimentId);
                 }
             }
 
-            System.out.println(
-                "FOUND IDS: " + experimentIds
-            );
         }
 
         return experimentIds;
