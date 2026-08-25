@@ -1,5 +1,3 @@
-// fix until compiles with ant build-java
-
 package org.micromanager.plugins.uvexposure;
 
 import com.google.common.eventbus.Subscribe;
