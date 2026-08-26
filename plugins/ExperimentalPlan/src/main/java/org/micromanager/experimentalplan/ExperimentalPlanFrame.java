@@ -12,6 +12,8 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import java.awt.Desktop;
+import java.net.URI;
 
 import java.io.File;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import org.micromanager.acquisition.SequenceSettings;
+import org.w3c.dom.events.MouseEvent;
 
 public class ExperimentalPlanFrame extends JDialog{
     private final Studio studio_;
@@ -59,7 +62,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
         setTitle("CAI Experiment ID");
 
-        setSize(700, 200);
+        setSize(700, 300);
 
         setLocationRelativeTo(null);
 
@@ -74,12 +77,18 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // title
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        titlePanel.add(new JLabel("CAI Experiment ID"));
+        titlePanel.add(new JLabel(
+            "<html>"
+            + "These Experiment IDs are marked with a status of 'Planned' in the master Excel file <br> "
+            + "located in the 'Project_Cell Analyzer Imaging Platform' Dropbox folder.<br>"
+            + "Select an experiment in the dropdown and click 'Apply' to set the root folder for your experiment."
+            + "</html>"
+        ));
 
         // controls
         JPanel controlsPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(10, 10,10, 10);
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -102,6 +111,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
         gbc.gridx = 1;
         gbc.gridy = 1;
+        gbc.gridheight = 1;
 
         // apply button to change root folder
         controlsPanel.add(applyButton_, gbc);
@@ -111,20 +121,30 @@ public class ExperimentalPlanFrame extends JDialog{
         refreshButton_.addActionListener(e -> refreshExperiments());
 
         gbc.gridx = 2;
-        gbc.gridy = 0;
+        gbc.gridy = 1;
         gbc.gridheight = 1;
 
         // refresh button to reload the list of experiment IDs
         controlsPanel.add(refreshButton_, gbc);
 
+        JButton openDropboxButton = new JButton("Open Excel file");
+        openDropboxButton.addActionListener(e -> openDropboxFile());
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridheight = 1;
+
+        controlsPanel.add(openDropboxButton, gbc);
+
         changeLinkButton_ = new JButton("<html>Change link<br>to dropbox</html>");
         changeLinkButton_.addActionListener(e -> changeDropboxLink());
 
-        gbc.gridx = 3;
+        gbc.gridx = 2;
         gbc.gridy = 0;
+        gbc.gridheight = 1;
 
         // change link button to change the dropbox link
         controlsPanel.add(changeLinkButton_, gbc);      
+
 
         // bottom text to display root folder
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -308,5 +328,38 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // show path in plugin GUI
         rootFolderLabel_.setText(newRootPath);
+    }
+
+    private void openDropboxFile() {
+        try {
+            String dropboxLink =
+                preferences_.get(DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK);
+
+            if (dropboxLink.isEmpty()
+                    || dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
+
+                JOptionPane.showMessageDialog(
+                    this,
+                    "No Dropbox link has been configured yet.",
+                    "Dropbox Link",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+
+                return;
+            }
+
+            // Open the Dropbox link in the user's default browser
+            Desktop.getDesktop().browse(new URI(dropboxLink));
+
+        }
+        catch (Exception e) {
+
+            JOptionPane.showMessageDialog(
+                this,
+                "Could not open Dropbox link:\n" + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 }
