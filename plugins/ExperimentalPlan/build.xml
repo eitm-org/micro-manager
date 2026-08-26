@@ -2,42 +2,4 @@
 
     <import file="../javapluginbuild.xml"/>
 
-    <path id="plugin.classpath">
-        <fileset dir="${basedir}/lib">
-            <include name="*.jar"/>
-        </fileset>
-    </path>
-
-    <target name="bundle-dependencies" depends="compile">
-
-        <unzip dest="${intdir}">
-            <fileset dir="${basedir}/lib">
-                <include name="*.jar"/>
-
-                <!-- Don't include unnecessary documentation/examples -->
-                <exclude name="*-examples-*.jar"/>
-                <exclude name="*-javadoc-*.jar"/>
-                <exclude name="*-sources-*.jar"/>
-
-                <!-- Don't include signed-JAR metadata -->
-                <patternset>
-                    <exclude name="META-INF/*.SF"/>
-                    <exclude name="META-INF/*.RSA"/>
-                    <exclude name="META-INF/*.DSA"/>
-                </patternset>
-            </fileset>
-        </unzip>
-
-    </target>
-
-    <target name="jar" depends="bundle-dependencies,copy-files">
-
-        <mkdir dir="${outdir}"/>
-
-        <mm-jar
-            basedir="${intdir}"
-            destfile="${jarfile}"/>
-
-    </target>
-
 </project>
