@@ -34,9 +34,12 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.SwingWorker;
 import javax.swing.JProgressBar;
+import javax.swing.BoxLayout;
 import java.io.IOException;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.micromanager.acquisition.SequenceSettings;
 import org.w3c.dom.events.MouseEvent;
@@ -49,6 +52,7 @@ public class ExperimentalPlanFrame extends JDialog{
     private JButton changeLinkButton_;
     private JLabel rootFolderLabel_;
     private JProgressBar refreshProgressBar_;
+    private JLabel lastUpdatedLabel_;
 
     private final ExperimentParser experimentParser_;
     private JComboBox<String> experimentComboBox_;
@@ -129,19 +133,28 @@ public class ExperimentalPlanFrame extends JDialog{
         refreshButton_ = new JButton("<html>Refresh list of<br>Experiment IDs</html>");
         refreshButton_.addActionListener(e -> refreshExperiments());
 
-        
+        lastUpdatedLabel_ = new JLabel("Last updated: N/A");
+
         refreshProgressBar_ = new JProgressBar();
         refreshProgressBar_.setIndeterminate(true);
         refreshProgressBar_.setVisible(false);
         refreshProgressBar_.setPreferredSize(new java.awt.Dimension(20, 20));
 
+        JPanel refreshPanel = new JPanel();
+        refreshPanel.setLayout(new BoxLayout(refreshPanel, BoxLayout.Y_AXIS));
+
+        refreshPanel.add(refreshButton_);
+        refreshPanel.add(lastUpdatedLabel_);
+
         gbc.gridx = 2;
         gbc.gridy = 1;
         gbc.gridheight = 1;
+        gbc.fill = GridBagConstraints.NONE;
 
         // refresh button to reload the list of experiment IDs
-        controlsPanel.add(refreshButton_, gbc);
+        controlsPanel.add(refreshPanel, gbc);
 
+        // Add loading indicator next to refresh button
         gbc.gridx = 3;
         gbc.gridy = 1;
         gbc.gridheight = 1;
@@ -226,7 +239,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
                     // populate the dropdown with Experiment IDs
                     updateExperimentList(experimentIds);
-
+                    lastUpdatedLabel_.setText( "Last updated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm")) );
                 }
                 catch (Exception e) {
 
@@ -235,11 +248,12 @@ public class ExperimentalPlanFrame extends JDialog{
                     e.printStackTrace();
                 }
 
-                // Hide loading spinner
+                // hide loading spinner
                 refreshProgressBar_.setVisible(false);
-                
+
                 refreshButton_.setText("<html>Refresh list of<br>Experiment IDs</html>");
-                // Enable refresh button again
+                
+                // enable refresh button again
                 refreshButton_.setEnabled(true);
             }
         };
