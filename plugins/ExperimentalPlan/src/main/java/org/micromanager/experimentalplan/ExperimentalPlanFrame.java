@@ -12,6 +12,12 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingWorker;
+
+import javax.swing.JProgressBar;
+
+import javax.swing.JProgressBar;
+
 import java.awt.Desktop;
 import java.net.URI;
 
@@ -26,6 +32,8 @@ import java.util.prefs.Preferences;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
+import javax.swing.JProgressBar;
 import java.io.IOException;
 
 import java.time.LocalDate;
@@ -40,6 +48,7 @@ public class ExperimentalPlanFrame extends JDialog{
     private JButton refreshButton_;
     private JButton changeLinkButton_;
     private JLabel rootFolderLabel_;
+    private JProgressBar refreshProgressBar_;
 
     private final ExperimentParser experimentParser_;
     private JComboBox<String> experimentComboBox_;
@@ -120,12 +129,25 @@ public class ExperimentalPlanFrame extends JDialog{
         refreshButton_ = new JButton("<html>Refresh list of<br>Experiment IDs</html>");
         refreshButton_.addActionListener(e -> refreshExperiments());
 
+        
+        refreshProgressBar_ = new JProgressBar();
+        refreshProgressBar_.setIndeterminate(true);
+        refreshProgressBar_.setVisible(false);
+        refreshProgressBar_.setPreferredSize(new java.awt.Dimension(20, 20));
+
         gbc.gridx = 2;
         gbc.gridy = 1;
         gbc.gridheight = 1;
 
         // refresh button to reload the list of experiment IDs
         controlsPanel.add(refreshButton_, gbc);
+
+        gbc.gridx = 3;
+        gbc.gridy = 1;
+        gbc.gridheight = 1;
+        gbc.fill = GridBagConstraints.NONE;
+
+        controlsPanel.add(refreshProgressBar_, gbc);
 
         JButton openDropboxButton = new JButton("Open Excel file");
         openDropboxButton.addActionListener(e -> openDropboxFile());
@@ -160,32 +182,72 @@ public class ExperimentalPlanFrame extends JDialog{
     }
 
     // Refresh button - refresh all the experiment IDs from the Excel file in the dropdown
+    // Refresh button - refresh all the experiment IDs from the Excel file in the dropdown
     private void refreshExperiments() {
 
-        try {
-            // get the saved Dropbox link
-            String dropboxLink = preferences_.get( DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK );
+        // Disable refresh button while loading
+        refreshButton_.setEnabled(false);
 
-            // make sure a Dropbox link has been configured
-            if (dropboxLink.equals( "PASTE_YOUR_DROPBOX_LINK_HERE")) {
-                JOptionPane.showMessageDialog( this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE );
-                return;
+        // Show loading spinner
+        refreshProgressBar_.setVisible(true);
+
+        SwingWorker<List<String>, Void> worker = new SwingWorker<List<String>, Void>() {
+
+            @Override
+            protected List<String> doInBackground() throws Exception {
+
+                // get the saved Dropbox link
+                String dropboxLink = preferences_.get(
+                    DROPBOX_LINK_KEY,
+                    DEFAULT_DROPBOX_LINK
+                );
+
+                // make sure a Dropbox link has been configured
+                if (dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
+                    throw new IOException("No Dropbox link has been configured yet.");
+                }
+
+                // download the latest version of the Excel spreadsheet
+                File excelFile = downloadExcelFile(dropboxLink);
+
+                // parse the newly downloaded spreadsheet
+                List<String> experimentIds = experimentParser_.parse(excelFile);
+
+                return experimentIds;
             }
 
-            // download the latest version of the Excel spreadsheet
-            File excelFile = downloadExcelFile(dropboxLink);
+            @Override
+            protected void done() {
 
-            // parse the newly downloaded spreadsheet
-            List<String> experimentIds = experimentParser_.parse(excelFile);
+                try {
 
-            // populate the dropdown with Experiment IDs
-            updateExperimentList(experimentIds);
+                    List<String> experimentIds = get();
 
-        }
-        catch (Exception e) {
-            JOptionPane.showMessageDialog( this, "Could not refresh experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
-            e.printStackTrace();
-        }
+                    // populate the dropdown with Experiment IDs
+                    updateExperimentList(experimentIds);
+
+                }
+                catch (Exception e) {
+
+                    JOptionPane.showMessageDialog(
+                        ExperimentalPlanFrame.this,
+                        "Could not refresh experiment list:\n" + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                    );
+
+                    e.printStackTrace();
+                }
+
+                // Hide loading spinner
+                refreshProgressBar_.setVisible(false);
+
+                // Enable refresh button again
+                refreshButton_.setEnabled(true);
+            }
+        };
+
+        worker.execute();
     }
 
     // update experiment ID dropdown
