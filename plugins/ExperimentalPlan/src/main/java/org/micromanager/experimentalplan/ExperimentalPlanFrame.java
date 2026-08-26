@@ -182,13 +182,14 @@ public class ExperimentalPlanFrame extends JDialog{
     }
 
     // Refresh button - refresh all the experiment IDs from the Excel file in the dropdown
-    // Refresh button - refresh all the experiment IDs from the Excel file in the dropdown
     private void refreshExperiments() {
 
-        // Disable refresh button while loading
+        // disable refresh button while loading
         refreshButton_.setEnabled(false);
 
-        // Show loading spinner
+        refreshButton_.setText("Loading...");
+
+        // show loading spinner
         refreshProgressBar_.setVisible(true);
 
         SwingWorker<List<String>, Void> worker = new SwingWorker<List<String>, Void>() {
@@ -229,19 +230,15 @@ public class ExperimentalPlanFrame extends JDialog{
                 }
                 catch (Exception e) {
 
-                    JOptionPane.showMessageDialog(
-                        ExperimentalPlanFrame.this,
-                        "Could not refresh experiment list:\n" + e.getMessage(),
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                    );
+                    JOptionPane.showMessageDialog( ExperimentalPlanFrame.this, "Could not refresh experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
 
                     e.printStackTrace();
                 }
 
                 // Hide loading spinner
                 refreshProgressBar_.setVisible(false);
-
+                
+                refreshButton_.setText("<html>Refresh list of<br>Experiment IDs</html>");
                 // Enable refresh button again
                 refreshButton_.setEnabled(true);
             }
