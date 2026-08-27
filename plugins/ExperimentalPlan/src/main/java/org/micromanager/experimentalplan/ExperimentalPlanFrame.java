@@ -53,6 +53,7 @@ public class ExperimentalPlanFrame extends JDialog{
     private JLabel rootFolderLabel_;
     private JProgressBar refreshProgressBar_;
     private JLabel lastUpdatedLabel_;
+    private JLabel excelFileLabel_;
 
     private final ExperimentParser experimentParser_;
     private JComboBox<String> experimentComboBox_;
@@ -110,11 +111,21 @@ public class ExperimentalPlanFrame extends JDialog{
 
         controlsPanel.add(new JLabel("Planned experiments:"),gbc);
 
+        excelFileLabel_ = new JLabel("No Excel file loaded.");
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 3;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        controlsPanel.add(excelFileLabel_, gbc);
+
         // dropdown for experiment IDs
         experimentComboBox_ = new JComboBox<>();
 
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
@@ -123,7 +134,7 @@ public class ExperimentalPlanFrame extends JDialog{
         applyButton_ = new JButton("Apply");
 
         gbc.gridx = 1;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.gridheight = 1;
 
         // apply button to change root folder
@@ -147,7 +158,7 @@ public class ExperimentalPlanFrame extends JDialog{
         refreshPanel.add(lastUpdatedLabel_);
 
         gbc.gridx = 2;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.gridheight = 1;
         gbc.fill = GridBagConstraints.NONE;
 
@@ -156,7 +167,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // Add loading indicator next to refresh button
         gbc.gridx = 3;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.gridheight = 1;
         gbc.fill = GridBagConstraints.NONE;
 
@@ -278,11 +289,14 @@ public class ExperimentalPlanFrame extends JDialog{
             String dropboxLink = preferences_.get( DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK );
 
             if (dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
-                JOptionPane.showMessageDialog( this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE );
+                JOptionPane.showMessageDialog(this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
             File excelFile = downloadExcelFile(dropboxLink);
+
+            updateExcelFileLabel(dropboxLink);
+
             List<String> experimentIds = experimentParser_.parse(excelFile);
 
             updateExperimentList(experimentIds);
@@ -433,6 +447,22 @@ public class ExperimentalPlanFrame extends JDialog{
                 "Error",
                 JOptionPane.ERROR_MESSAGE
             );
+        }
+    }
+
+    private void updateExcelFileLabel(String dropboxLink) {
+        try {
+            URI uri = new URI(dropboxLink);
+            String fileName = new File(uri.getPath()).getName();
+
+            if (fileName.isEmpty()) {
+                fileName = "Unknown Excel file";
+            }
+
+            excelFileLabel_.setText("Loaded excel file: " + fileName);
+        }
+        catch (Exception e) {
+            excelFileLabel_.setText("Loaded excel file: Unknown");
         }
     }
 }
