@@ -17,9 +17,9 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 public class ExperimentParser {
 
     // reads the experimental plans excel file and returns a list of experiment IDs that are marked as "Planned"
-    public List<String> parse(File excelFile) throws IOException {
+    public List<Experiment> parse(File excelFile) throws IOException {
 
-        List<String> experimentIds = new ArrayList<>();
+        List<Experiment> experiments = new ArrayList<>();
 
         // open excel and create an Apache POI Workbook
         try (FileInputStream input = new FileInputStream(excelFile);
@@ -40,6 +40,8 @@ public class ExperimentParser {
             // status is column B
             int statusColumn = 1;
 
+            int purposeColumn = 3;
+
             for (int rowNumber = 1; rowNumber <= sheet.getLastRowNum(); rowNumber++) {
 
                 Row row = sheet.getRow(rowNumber);
@@ -52,13 +54,15 @@ public class ExperimentParser {
 
                 String status = formatter.formatCellValue( row.getCell(statusColumn) ).trim();
 
+                String purpose = formatter.formatCellValue(row.getCell(purposeColumn)).trim();
+
                 if (!experimentId.isEmpty() && status.equalsIgnoreCase("Planned")) {
-                    experimentIds.add(experimentId);
+                    experiments.add(new Experiment(experimentId, purpose));
                 }
             }
 
         }
 
-        return experimentIds;
+        return experiments;
     }
 }

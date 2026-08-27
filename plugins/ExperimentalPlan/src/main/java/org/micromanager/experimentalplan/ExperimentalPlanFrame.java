@@ -43,6 +43,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.micromanager.acquisition.SequenceSettings;
 import org.w3c.dom.events.MouseEvent;
+import java.awt.Dimension;
 
 public class ExperimentalPlanFrame extends JDialog{
     private final Studio studio_;
@@ -56,7 +57,7 @@ public class ExperimentalPlanFrame extends JDialog{
     private JLabel excelFileLabel_;
 
     private final ExperimentParser experimentParser_;
-    private JComboBox<String> experimentComboBox_;
+    private JComboBox<Experiment> experimentComboBox_;
 
     private static final String DROPBOX_LINK_KEY = "dropboxLink";
     private static final String DEFAULT_DROPBOX_LINK = "https://www.dropbox.com/scl/fi/ymre7hihjfkmns4l7nuv5/TCellAnalyzer_Experiments_Summary_Active_2026.xlsx?rlkey=68yqrxr1do312jq2lvyie0ag9&st=8o78hj4a&dl=1";
@@ -76,7 +77,7 @@ public class ExperimentalPlanFrame extends JDialog{
 
         setTitle("CAI Experiment ID");
 
-        setSize(700, 300);
+        setSize(800, 400);
 
         setLocationRelativeTo(null);
 
@@ -123,6 +124,8 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // dropdown for experiment IDs
         experimentComboBox_ = new JComboBox<>();
+        experimentComboBox_.setPreferredSize(new Dimension(250, experimentComboBox_.getPreferredSize().height));
+        experimentComboBox_.addActionListener(e -> updateRootFolderLabel());
 
         gbc.gridx = 0;
         gbc.gridy = 2;
@@ -215,11 +218,11 @@ public class ExperimentalPlanFrame extends JDialog{
         // show loading spinner
         refreshProgressBar_.setVisible(true);
 
-        SwingWorker<List<String>, Void> worker = new SwingWorker<List<String>, Void>() {
+        SwingWorker<List<Experiment>, Void> worker = new SwingWorker<List<Experiment>, Void>() {
 
             // runs in the background - downloads the Excel file and parses it to get the list of experiment IDs
             @Override
-            protected List<String> doInBackground() throws Exception {
+            protected List<Experiment> doInBackground() throws Exception {
                 String dropboxLink = preferences_.get(DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK);
 
                 if (dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
@@ -233,10 +236,10 @@ public class ExperimentalPlanFrame extends JDialog{
             @Override
             protected void done() {
                 try {
-                    List<String> experimentIds = get();
+                    List<Experiment> experiments = get();
 
                     // populate the dropdown with Experiment IDs
-                    updateExperimentList(experimentIds);
+                    updateExperimentList(experiments);
                     lastUpdatedLabel_.setText( "Last updated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm")) );
                 }
                 catch (Exception e) {
@@ -258,11 +261,11 @@ public class ExperimentalPlanFrame extends JDialog{
     }
 
     // update experiment ID dropdown
-    private void updateExperimentList(List<String> experimentIds) {
+    private void updateExperimentList(List<Experiment> experiments) {
         experimentComboBox_.removeAllItems();
 
-        for (String experimentId : experimentIds) {
-            experimentComboBox_.addItem(experimentId);
+        for (Experiment experiment : experiments) {
+            experimentComboBox_.addItem(experiment);
         }
     }
 
@@ -275,9 +278,10 @@ public class ExperimentalPlanFrame extends JDialog{
                 JOptionPane.showMessageDialog(this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
+        
+            List<Experiment> experiments = loadExperimentIds(dropboxLink);
+            updateExperimentList(experiments);
 
-            List<String> experimentIds = loadExperimentIds(dropboxLink);
-            updateExperimentList(experimentIds);
         }
         catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Could not load experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -286,7 +290,7 @@ public class ExperimentalPlanFrame extends JDialog{
     }
 
     // download the excel file from Dropbox and parse it to get the list of experiment IDs
-    private List<String> loadExperimentIds(String dropboxLink) throws Exception {
+    private List<Experiment> loadExperimentIds(String dropboxLink) throws Exception {
         File excelFile = downloadExcelFile(dropboxLink);
         updateExcelFileLabel(dropboxLink);
         return experimentParser_.parse(excelFile);
@@ -353,12 +357,15 @@ public class ExperimentalPlanFrame extends JDialog{
     // apply the selected experiment ID to the root folder
     private void applyExperiment() {
         // get currect Experiment ID selected
-        String experimentId = (String) experimentComboBox_.getSelectedItem();
+        Experiment experiment = (Experiment) experimentComboBox_.getSelectedItem();
 
-        if (experimentId == null || experimentId.isEmpty()) {
-            JOptionPane.showMessageDialog( this, "Please select an Experiment ID.", "No Experiment Selected", JOptionPane.WARNING_MESSAGE );
+        if (experiment == null) {
+            JOptionPane.showMessageDialog( this, "Please select an Experiment.", "No Experiment Selected", JOptionPane.WARNING_MESSAGE );
             return;
         }
+
+        String experimentId = experiment.getId();
+        String purpose = experiment.getPurpose();
 
         String date = LocalDate.now().format( DateTimeFormatter.ofPattern("yyyyMMdd") );
         String folderName = date + "-" + experimentId;
@@ -378,11 +385,8 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // convert the file back to absolute path for Micro-Manager to use
         String newRootPath = newRoot.getAbsolutePath();
-        SequenceSettings newSettings = currentSettings.copyBuilder() .root(newRootPath) .build();
+        SequenceSettings newSettings = currentSettings.copyBuilder().root(newRootPath).comment(purpose).build();
         studio_.acquisitions().setAcquisitionSettings( newSettings );
-
-        // show path in plugin GUI
-        rootFolderLabel_.setText(newRootPath);
     }
 
     // open the Dropbox link in the user's default browser
@@ -415,5 +419,32 @@ public class ExperimentalPlanFrame extends JDialog{
         catch (Exception e) {
             excelFileLabel_.setText("Loaded excel file: Unknown");
         }
+    }
+
+    // update the label to show the root folder that will be set when the user clicks "Apply"
+    private void updateRootFolderLabel() {
+        Experiment experiment = (Experiment) experimentComboBox_.getSelectedItem();
+
+        if (experiment == null) {
+            rootFolderLabel_.setText("");
+            return;
+        }
+
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String folderName = date + "-" + experiment.getId();
+
+        SequenceSettings currentSettings = studio_.acquisitions().getAcquisitionSettings();
+        String currentRoot = currentSettings.root();
+        File currentRootFolder = new File(currentRoot);
+
+        String currentFolderName = currentRootFolder.getName();
+
+        if (currentFolderName.matches("\\d{8}-TCA-\\d{4}-\\d+")) {
+            currentRootFolder = currentRootFolder.getParentFile();
+        }
+
+        File newRoot = new File(currentRootFolder, folderName);
+
+        rootFolderLabel_.setText(newRoot.getAbsolutePath());
     }
 }
