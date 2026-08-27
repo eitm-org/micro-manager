@@ -170,6 +170,8 @@ public class SaveAFPropertiesFrame extends JDialog {
         studio_.getAutofocusManager().setAutofocusMethodByName(currentMethodName);
         studio_.app().refreshGUI();
 
+        studio_.app().refreshGUI();
+
         System.out.println( "Properties after loading:");
 
         for (PropertyItem property : autofocus.getProperties()) {

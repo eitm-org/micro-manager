@@ -73,7 +73,6 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
    private static final String KEY_CHANNEL = "Channel";
    private static final String NOCHANNEL = "";
 
-   private static final String KEY_DELTA_Z = "Delta Z";
    private static final String KEY_DRYRUN = "Dry run";
    private static final String[] SHOWVALUES = {"Yes", "No"};
 

@@ -1,5 +1,5 @@
 /**
- * A Micro-Manager plugin, intended to save the AF properties to an xml file.
+ * A Micro-Manager plugin, intended to organize experimental plans.
  *  *
  * <p>Copy this code to a location of your choice, change the name of the project
  * (and the classes), build the jar file and copy it to the mmplugins folder
@@ -23,8 +23,7 @@
  * @author Fiona Ryan
  */
 
-
-package org.micromanager.saveafproperties;
+package org.micromanager.experimentalplan;
 
 import org.micromanager.MenuPlugin;
 import org.micromanager.Studio;
@@ -32,16 +31,14 @@ import org.scijava.plugin.Plugin;
 import org.scijava.plugin.SciJavaPlugin;
 
 @Plugin(type = MenuPlugin.class)
-public class SaveAFProperties implements SciJavaPlugin, MenuPlugin {
-
+public class ExperimentalPlan implements SciJavaPlugin, MenuPlugin {
     private Studio studio_;
-    private SaveAFPropertiesFrame frame_;
+    private ExperimentalPlanFrame frame_;
 
     @Override
     public void setContext(Studio studio) {
         studio_ = studio;
     }
-
 
    /**
     * This method is called when your plugin is selected from the Plugins menu.
@@ -52,7 +49,7 @@ public class SaveAFProperties implements SciJavaPlugin, MenuPlugin {
    public void onPluginSelected() {
       if (frame_ == null) {
          // We have never before shown our GUI, so now we need to create it.
-         frame_ = new SaveAFPropertiesFrame(studio_);
+         frame_ = new ExperimentalPlanFrame(studio_);
       }
       frame_.setVisible(true);
    }
@@ -72,12 +69,12 @@ public class SaveAFProperties implements SciJavaPlugin, MenuPlugin {
     */
    @Override
    public String getName() {
-      return "Save AF Properties";
+      return "Experimental Plan";
    }
 
    @Override
    public String getHelpText() {
-      return "Save Autofocus Properties to XML file";
+      return "Create and manage experimental plans";
    }
 
    @Override
