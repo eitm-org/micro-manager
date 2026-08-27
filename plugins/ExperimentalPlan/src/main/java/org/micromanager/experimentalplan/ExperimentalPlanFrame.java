@@ -84,7 +84,7 @@ public class ExperimentalPlanFrame extends JDialog{
         loadExperiments();
     }
 
-
+    // create the user interface for the plugin
     private void createUserInterface() {
 
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -191,7 +191,6 @@ public class ExperimentalPlanFrame extends JDialog{
         // change link button to change the dropbox link
         controlsPanel.add(changeLinkButton_, gbc);      
 
-
         // bottom text to display root folder
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottomPanel.add(new JLabel("Root folder will become: "));
@@ -205,7 +204,7 @@ public class ExperimentalPlanFrame extends JDialog{
         add(mainPanel);
     }
 
-    // Refresh button - refresh all the experiment IDs from the Excel file in the dropdown
+    // refresh button - refresh all the experiment IDs from the Excel file in the dropdown
     private void refreshExperiments() {
 
         // disable refresh button while loading
@@ -218,34 +217,22 @@ public class ExperimentalPlanFrame extends JDialog{
 
         SwingWorker<List<String>, Void> worker = new SwingWorker<List<String>, Void>() {
 
+            // runs in the background - downloads the Excel file and parses it to get the list of experiment IDs
             @Override
             protected List<String> doInBackground() throws Exception {
+                String dropboxLink = preferences_.get(DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK);
 
-                // get the saved Dropbox link
-                String dropboxLink = preferences_.get(
-                    DROPBOX_LINK_KEY,
-                    DEFAULT_DROPBOX_LINK
-                );
-
-                // make sure a Dropbox link has been configured
                 if (dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
                     throw new IOException("No Dropbox link has been configured yet.");
                 }
 
-                // download the latest version of the Excel spreadsheet
-                File excelFile = downloadExcelFile(dropboxLink);
-
-                // parse the newly downloaded spreadsheet
-                List<String> experimentIds = experimentParser_.parse(excelFile);
-
-                return experimentIds;
+                return loadExperimentIds(dropboxLink);
             }
 
+            // runs on the GUI thread after doInBackground() is done - updates the dropdown with the new list of experiment IDs
             @Override
             protected void done() {
-
                 try {
-
                     List<String> experimentIds = get();
 
                     // populate the dropdown with Experiment IDs
@@ -253,9 +240,7 @@ public class ExperimentalPlanFrame extends JDialog{
                     lastUpdatedLabel_.setText( "Last updated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HH:mm")) );
                 }
                 catch (Exception e) {
-
                     JOptionPane.showMessageDialog( ExperimentalPlanFrame.this, "Could not refresh experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
-
                     e.printStackTrace();
                 }
 
@@ -274,7 +259,6 @@ public class ExperimentalPlanFrame extends JDialog{
 
     // update experiment ID dropdown
     private void updateExperimentList(List<String> experimentIds) {
-
         experimentComboBox_.removeAllItems();
 
         for (String experimentId : experimentIds) {
@@ -282,31 +266,32 @@ public class ExperimentalPlanFrame extends JDialog{
         }
     }
 
-    // load experiments from the Excel file
+    // load experiments from the Excel file when plugin starts up
     private void loadExperiments() {
-
         try {
-            String dropboxLink = preferences_.get( DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK );
+            String dropboxLink = preferences_.get(DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK);
 
             if (dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
                 JOptionPane.showMessageDialog(this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
-            File excelFile = downloadExcelFile(dropboxLink);
-
-            updateExcelFileLabel(dropboxLink);
-
-            List<String> experimentIds = experimentParser_.parse(excelFile);
-
+            List<String> experimentIds = loadExperimentIds(dropboxLink);
             updateExperimentList(experimentIds);
-
         }
         catch (Exception e) {
-            JOptionPane.showMessageDialog( this, "Could not load experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
+            JOptionPane.showMessageDialog(this, "Could not load experiment list:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
     }
+
+    // download the excel file from Dropbox and parse it to get the list of experiment IDs
+    private List<String> loadExperimentIds(String dropboxLink) throws Exception {
+        File excelFile = downloadExcelFile(dropboxLink);
+        updateExcelFileLabel(dropboxLink);
+        return experimentParser_.parse(excelFile);
+    }
+
 
     // download the Excel file from Dropbox using the provided link
     private File downloadExcelFile(String dropboxLink) throws IOException {
@@ -317,9 +302,9 @@ public class ExperimentalPlanFrame extends JDialog{
         }
 
         // create a URL connection to the Dropbox file
-        URL url = new URL(dropboxLink);
+        URI uri = URI.create(dropboxLink);
 
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
 
         connection.setRequestMethod("GET");
         connection.setInstanceFollowRedirects(true); // allow the connection to follow redirects
@@ -351,31 +336,22 @@ public class ExperimentalPlanFrame extends JDialog{
 
     // change the Dropbox link to the Excel file
     private void changeDropboxLink() {
-
         String currentLink = preferences_.get( DROPBOX_LINK_KEY, "" );
-
         String newLink = JOptionPane.showInputDialog( this, "Enter the Dropbox link to the Excel file:", currentLink );
-
         if (newLink == null) {
             return;
         }
-
         newLink = newLink.trim();
-
         if (newLink.isEmpty()) {
             return;
         }
-
         preferences_.put( DROPBOX_LINK_KEY, newLink );
-
         JOptionPane.showMessageDialog( this, "Dropbox link saved." );
-
         loadExperiments();
     }
 
     // apply the selected experiment ID to the root folder
     private void applyExperiment() {
-
         // get currect Experiment ID selected
         String experimentId = (String) experimentComboBox_.getSelectedItem();
 
@@ -384,16 +360,10 @@ public class ExperimentalPlanFrame extends JDialog{
             return;
         }
 
-        // generate today's data in the format YYYYMMDD
         String date = LocalDate.now().format( DateTimeFormatter.ofPattern("yyyyMMdd") );
-
         String folderName = date + "-" + experimentId;
-
-        SequenceSettings currentSettings = studio_.acquisitions().getAcquisitionSettings();
-        
-        // Get whatever root is currently set in Micro-Manager
+        SequenceSettings currentSettings = studio_.acquisitions().getAcquisitionSettings();   
         String currentRoot = currentSettings.root();
-
         File currentRootFolder = new File(currentRoot);
 
         // if the current root is already one of our generated experiment folders, go up one level first
@@ -408,57 +378,38 @@ public class ExperimentalPlanFrame extends JDialog{
 
         // convert the file back to absolute path for Micro-Manager to use
         String newRootPath = newRoot.getAbsolutePath();
-
         SequenceSettings newSettings = currentSettings.copyBuilder() .root(newRootPath) .build();
-
         studio_.acquisitions().setAcquisitionSettings( newSettings );
 
         // show path in plugin GUI
         rootFolderLabel_.setText(newRootPath);
     }
 
+    // open the Dropbox link in the user's default browser
     private void openDropboxFile() {
         try {
             String dropboxLink =
                 preferences_.get(DROPBOX_LINK_KEY, DEFAULT_DROPBOX_LINK);
 
-            if (dropboxLink.isEmpty()
-                    || dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
-
-                JOptionPane.showMessageDialog(
-                    this,
-                    "No Dropbox link has been configured yet.",
-                    "Dropbox Link",
-                    JOptionPane.INFORMATION_MESSAGE
-                );
-
+            if (dropboxLink.isEmpty() || dropboxLink.equals("PASTE_YOUR_DROPBOX_LINK_HERE")) {
+                JOptionPane.showMessageDialog( this, "No Dropbox link has been configured yet.", "Dropbox Link", JOptionPane.INFORMATION_MESSAGE );
                 return;
             }
-
-            // Open the Dropbox link in the user's default browser
             Desktop.getDesktop().browse(new URI(dropboxLink));
-
         }
         catch (Exception e) {
-
-            JOptionPane.showMessageDialog(
-                this,
-                "Could not open Dropbox link:\n" + e.getMessage(),
-                "Error",
-                JOptionPane.ERROR_MESSAGE
-            );
+            JOptionPane.showMessageDialog( this, "Could not open Dropbox link:\n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE );
         }
     }
 
+    // update the label to show the name of the loaded Excel file
     private void updateExcelFileLabel(String dropboxLink) {
         try {
             URI uri = new URI(dropboxLink);
             String fileName = new File(uri.getPath()).getName();
-
             if (fileName.isEmpty()) {
                 fileName = "Unknown Excel file";
             }
-
             excelFileLabel_.setText("Loaded excel file: " + fileName);
         }
         catch (Exception e) {
