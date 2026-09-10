@@ -49,7 +49,6 @@ public class ComputeBestFocus300nm {
         public boolean useMedianForConsensusCenter = true;
     }
 
-
     // Extremum struct
     public static class Extremum {
         public double z;
@@ -224,11 +223,12 @@ public class ComputeBestFocus300nm {
      */
 
     public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
-        // Overload method
+        // Overload method 
         return computeBestFocus(imageArray, z_ini, deltaz_samp, zSampled, new Settings());
     }
 
     public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled, Settings settings) {
+        System.out.println("zSampled range: " + zSampled[0] + " to " + zSampled[zSampled.length - 1]);
         // Input checks
         if (imageArray == null || imageArray.isEmpty()) {
             throw new IllegalArgumentException("imageArray must be a non-empty list.");
@@ -279,7 +279,13 @@ public class ComputeBestFocus300nm {
         double[][] metricValuesNorm = normalizeMetricsForPlot(metricValuesRaw);
 
         // Fit smoothing splines
+        
         double[] zFine = linspace(min(zSampled), max(zSampled), settings.nFinePoints);
+
+        System.out.println("zSampled range```: " + min(zSampled) + " to " + max(zSampled));
+        System.out.println("zSampled range~~~: " + zSampled[0] + " to " + zSampled[zSampled.length - 1]);
+        System.out.println("zFine range~~~~: " + zFine[0] + " to " + zFine[zFine.length - 1]);
+        
         double[][] smoothCurvesNorm = new double[zFine.length][nMetrics];
         List<UnivariateFunction> fitObjects = new ArrayList<>();
 
@@ -1093,7 +1099,7 @@ public class ComputeBestFocus300nm {
     }
 
     private static double max(double[] arr) {
-        double max = Double.MIN_VALUE;
+        double max = Double.NEGATIVE_INFINITY;
         for (double v : arr) {
             if (v > max) max = v;
         }

@@ -1090,7 +1090,7 @@ public class ComputeBestFocus460nm {
     }
 
     private static double max(double[] arr) {
-        double max = Double.MIN_VALUE;
+        double max = Double.NEGATIVE_INFINITY;
         for (double v : arr) {
             if (v > max) max = v;
         }

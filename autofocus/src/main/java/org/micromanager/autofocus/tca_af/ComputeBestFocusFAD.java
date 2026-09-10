@@ -174,13 +174,12 @@ public class ComputeBestFocusFAD {
      * @param zSampled    z values for each image
      * @return Results struct
      */
-
-    public static Results compute(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
+    public static Results computeBestFocus(List<ImageProcessor> imageArray, double z_ini, double deltaz_samp, double[] zSampled) {
         // Overload method 
-        return compute(imageArray, z_ini, deltaz_samp, zSampled, new Settings());
+        return computeBestFocus(imageArray, z_ini, deltaz_samp, zSampled, new Settings());
     }
 
-    public static Results compute(List<ImageProcessor> imageArray, double zIni, double deltazSamp, double[] zSampled, Settings s) {
+    public static Results computeBestFocus(List<ImageProcessor> imageArray, double zIni, double deltazSamp, double[] zSampled, Settings s) {
         // --- Input checks ---
         if (imageArray == null || imageArray.isEmpty()) {
             throw new IllegalArgumentException("imageArray must be a non-empty list.");
@@ -275,7 +274,7 @@ public class ComputeBestFocusFAD {
             }
 
             // save smoothCurvesNorm in original scale for debugging as CSV file:
-            saveSmoothCurveToCSV(zFine, col(smoothCurvesNorm, m), metricNames[m] + "_smooth_curve.csv");
+            //saveSmoothCurveToCSV(zFine, col(smoothCurvesNorm, m), metricNames[m] + "_smooth_curve.csv");
 
         }
 
@@ -1405,7 +1404,7 @@ public class ComputeBestFocusFAD {
     }
 
     private static double max(double[] arr) {
-        double max = Double.MIN_VALUE;
+        double max = Double.NEGATIVE_INFINITY;
         for (double v : arr) {
             if (v > max) max = v;
         }

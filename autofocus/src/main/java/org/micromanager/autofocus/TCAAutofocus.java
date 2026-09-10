@@ -487,13 +487,13 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
             case "NADH":
                z_ini = 5.0;
                IJ.log("Using NADH focus analyzer");
-               results = wrapResults(ComputeBestFocusNADH.compute(imageProcessors, z_ini, deltaz_samp, zSampled, settingsNADH_));
+               results = wrapResults(ComputeBestFocusNADH.computeBestFocus(imageProcessors, z_ini, deltaz_samp, zSampled, settingsNADH_));
                core_.logMessage("Moving to best Z-focus position: " + results.z_best_focus);
                break;
             case "FAD":
                z_ini = -10.0;
                IJ.log("Using FAD focus analyzer");
-               results = wrapResults(ComputeBestFocusFAD.compute(imageProcessors, z_ini, deltaz_samp, zSampled, settingsFAD_));
+               results = wrapResults(ComputeBestFocusFAD.computeBestFocus(imageProcessors, z_ini, deltaz_samp, zSampled, settingsFAD_));
                core_.logMessage("Moving to best Z-focus position: " + results.z_best_focus);
                break;
             default:
