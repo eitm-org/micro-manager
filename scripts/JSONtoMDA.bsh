@@ -1,0 +1,95 @@
+// The goal of this script is to take experiment information from Sapio's JSON file and 
+// automatically configure Micro-Manager's MDA settings before you start acquiring images.
+
+import com.google.gson.JsonParser;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
+import java.io.File;
+import java.io.FileReader;
+import java.util.ArrayList;
+import org.micromanager.acquisition.SequenceSettings;
+import org.micromanager.acquisition.ChannelSpec;
+
+// ---------- USER SETTINGS ----------
+String jsonPath = "C:/Users/FionaRyan/projects/MM/experiment.json";
+
+// ---------- READ JSON ----------
+File file = new File(jsonPath);
+if (!file.exists()) throw new Exception("JSON file not found: " + jsonPath);
+
+FileReader reader = new FileReader(file);
+JsonObject json = null;
+try {
+    json = new JsonParser().parse(reader).getAsJsonObject();
+} finally {
+    reader.close();
+}
+
+String experimentId = json.get("experiment_id").getAsString();
+String title = json.get("title").getAsString();
+String notes = json.has("notes") ? json.get("notes").getAsString() : "";
+String prefix = experimentId + "_" + title.replaceAll("[^A-Za-z0-9_-]", "_");
+String comment = "Sapio ID: " + experimentId + "\n" + notes;
+
+print("[Sapio] Loaded experiment: " + experimentId + " - " + title + "\n");
+
+// ---------- READ DESIRED CHANNELS ----------
+JsonObject mda = json.getAsJsonObject("mda");
+JsonObject timepoints = mda.getAsJsonObject("timepoints");
+boolean useTimepoints = timepoints.get("enabled").getAsBoolean();
+int timepointCount = timepoints.get("count").getAsInt();
+double interval = timepoints.get("interval").getAsDouble();
+String intervalUnit = timepoints.get("unit").getAsString();
+
+double intervalMs = interval;
+if (intervalUnit.equals("s")) intervalMs = interval * 1000.0;
+else if (intervalUnit.equals("min")) intervalMs = interval * 60000.0;
+
+print("[Sapio] Time points: " + timepointCount + "\n");
+print("[Sapio] Interval: " + intervalMs + " ms\n");
+
+String channelGroup = mda.get("channel_group").getAsString();
+JsonArray desiredChannels = mda.getAsJsonArray("channels");
+ArrayList desiredNames = new ArrayList();
+
+for (int i = 0; i < desiredChannels.size(); i++) {
+    String name = desiredChannels.get(i).getAsJsonObject().get("name").getAsString();
+    desiredNames.add(name);
+    print("[Sapio] Requested channel: " + name + "\n");
+}
+
+// ---------- UPDATE EXISTING MDA CHANNELS ----------
+SequenceSettings current = mm.acquisitions().getAcquisitionSettings();
+ArrayList existingChannels = new ArrayList();
+ArrayList foundNames = new ArrayList();
+
+for (int i = 0; i < current.channels().size(); i++) {
+    ChannelSpec ch = (ChannelSpec) current.channels().get(i);
+    boolean shouldUse = desiredNames.contains(ch.config());
+
+    if (shouldUse) foundNames.add(ch.config());
+
+    ChannelSpec updatedChannel = ch.copyBuilder().useChannel(shouldUse).build();
+    existingChannels.add(updatedChannel);
+
+    print("[Sapio] " + ch.config() + ": enabled=" + shouldUse + "\n");
+}
+
+// ---------- VALIDATE CHANNEL NAMES ----------
+for (int i = 0; i < desiredNames.size(); i++) {
+    if (!foundNames.contains(desiredNames.get(i))) {
+        throw new Exception("Requested channel not found in current MDA: " + desiredNames.get(i));
+    }
+}
+
+
+ // ---------- APPLY SETTINGS ----------
+SequenceSettings updated = current.copyBuilder().prefix(prefix).comment(comment).channelGroup(channelGroup).channels(existingChannels).useChannels(true).useFrames(useTimepoints).numFrames(timepointCount).intervalMs(intervalMs).build();
+
+mm.acquisitions().setAcquisitionSettings(updated);
+
+print("[Sapio] SUCCESS: Experiment metadata imported.\n");
+print("[Sapio] SUCCESS: Existing channel selections updated.\n");
+print("[Sapio] SUCCESS: Time-point settings configured.\n");
+print("[Sapio] Review MDA settings before clicking Acquire.\n");
+
