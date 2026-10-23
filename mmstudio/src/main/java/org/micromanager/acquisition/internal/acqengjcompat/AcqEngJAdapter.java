@@ -869,6 +869,11 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
         autofocusEveryChannel_ = enabled;
    }
 
+   private String referenceAutofocusChannel_ = "460nm"; // e.g. "460nm"
+
+   public void setReferenceAutofocusChannel(String channelConfig) {
+      referenceAutofocusChannel_ = channelConfig;
+   }
    /**
     * Hook function executing (software) autofocus.  When autofocus is checked in the MDA,
     * the autofocus should run before each channel / Z Stack combo (i.e. at each time point
@@ -878,60 +883,72 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
     */
    protected AcquisitionHook autofocusHook(int skipFrames) {
       return new AcquisitionHook() {
-
          @Override
          public AcquisitionEvent run(AcquisitionEvent event) {
-            // print message using core logMessage:
-            studio_.core().logMessage("Running autofocus hook...");
-
             if (!event.isAcquisitionFinishedEvent()
-                  && (event.getZIndex() == null || event.getZIndex() == 0)){
-                  //&& (event.getAxisPosition(AcqEngMetadata.CHANNEL_AXIS) == null
-                    //    || (Integer) event.getAxisPosition(AcqEngMetadata.CHANNEL_AXIS) == 0)) {
+                  && (event.getZIndex() == null || event.getZIndex() == 0)) {
                if (event.getTIndex() != null && skipFrames != 0
-                       && event.getTIndex() % skipFrames != 0) {
+                     && event.getTIndex() % skipFrames != 0) {
                   return event;
                }
                try {
-                  if(autofocusEveryChannel_){
+                  String posName = event.getTags().get(AcqEngMetadata.POS_NAME); // get pos name (i.e pos0, pos1, etc.)
+                  String channel = event.getConfigPreset();
+                  boolean isReferenceChannel = referenceAutofocusChannel_ != null && referenceAutofocusChannel_.equals(channel); // 460nm is the default reference channel for autofocus, but user can change it
+
+                  // CHANGED - AF update Z position
+                  // find Z position to start autofocus from
+                  String zDevice = core_.getFocusDevice();
+                  Double seedZ = null;
+
+                  // check if there is a previously saved reference-channel Z position for this XY position in positionMap_
+                  if (posName != null && positionMap_.containsKey(posName)) {
+
+                     // if there is a previously saved reference-channel Z position for this XY position, use it as the seed
+                     MultiStagePosition storedMsp = positionMap_.get(posName);
+                     for (int i = 0; i < storedMsp.size(); i++) {
+                        StagePosition sp = storedMsp.get(i);
+                        // is it a 1D stage position (not XY) and is it the Z drive? If so, use it as the seed Z position for autofocus
+                        if (sp.is1DStagePosition() && sp.getStageDeviceLabel().equals(zDevice)) {
+                           seedZ = sp.get1DPosition();
+                        }
+                     }
+                  }
+
+                  // if there is no previously saved reference-channel Z position for this XY position, use the current Z position as the seed
+                  if (seedZ == null) {
+                     seedZ = event.getZPosition();
+                  }
+
+                  // move Z drive to the seed position before running autofocus
+                  studio_.core().setPosition(seedZ);
+                  studio_.core().waitForDevice(zDevice);
+
+
+                  // run autofocus
+                  if (autofocusEveryChannel_) {
                      AutofocusPlugin af = studio_.getAutofocusManager().getAutofocusMethod();
-
-                     String channel = event.getConfigPreset();
-                     studio_.core().logMessage("channel is " + channel);
-
                      if (channel != null) {
                         af.setPropertyValue("Channel", channel);
                      }
-                     // previous channel AF might have moved the stage away from event's position
-                     // in case previous AF moved away too much, we get back
-                     studio_.core().logMessage("Moving back to event's position: " + event.getZPosition());
-                     studio_.core().setPosition(event.getZPosition());
-                     studio_.core().waitForDevice(studio_.core().getFocusDevice());
-                     
                      af.fullFocus();
                   } else {
                      studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
                   }
 
+                  // CHANGED - only the reference channel's result updates positionMap_
+                  if (posName != null && isReferenceChannel) {
 
-                  String posName = event.getTags().get(AcqEngMetadata.POS_NAME);
-                  if (posName != null) {
-                     MultiStagePosition msp = new MultiStagePosition();
+                     // create a new MultiStagePosition for this XY position and store the new Z position in it
+                     MultiStagePosition msp = new MultiStagePosition(); // associate it with this position
                      msp.setLabel(posName);
+
+                     // save the current Z position after autofocus in the MultiStagePosition
                      for (String deviceName : event.getStageDeviceNames()) {
                         msp.add(StagePosition.create1D(deviceName, core_.getPosition(deviceName)));
                      }
                      positionMap_.put(posName, msp);
                   }
-                  // TODO: Read back the position of the focus drive, and somehow perpetuate it back
-                  // to the StagePositionList that is in use.
-
-                  // Double focusZ = af.fullFocus();
-                  // studio_.core().setPosition(focusZ);
-                  // studio_.core().waitForDevice(studio_.core().getFocusDevice());
-                  // studio_.logs().logMessage("   Autofocus best Z + AF offset= " + focusZ);
-                  // studio_.core().updateSystemStateCache();
-
                } catch (Exception ex) {
                   studio_.logs().logError(ex, "Failed to autofocus.");
                }
@@ -940,9 +957,7 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
          }
 
          @Override
-         public void close() {
-            // nothing to do here
-         }
+         public void close() { }
       };
    }
 
