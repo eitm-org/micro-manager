@@ -29,10 +29,15 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
-
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import ij.IJ;
 import javax.swing.JOptionPane;
 
 import org.micromanager.AutofocusPlugin;
@@ -114,6 +119,9 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
    private long lastFrameIndex_ = -1;
    private ArrayList<RunnablePlusIndices> runnables_ = new ArrayList<>();
    private boolean autofocusEveryChannel_ = false;
+   private boolean afOncePerWell_ = false;
+   
+   private final Map<String, Double> lastZByWellChannel_ = new HashMap<>(); // Last autofocus result per well + channel (not per time point), used as the seed
 
    private class RunnablePlusIndices {
       int channel_;
@@ -394,6 +402,7 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
          return null;
       }
    }
+   
 
    /**
     * Higher level stuff in MM may depend on many hidden, poorly documented
@@ -869,63 +878,130 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
         autofocusEveryChannel_ = enabled;
    }
 
+   @Override
+   public void setAFOncePerPosition(boolean enabled) {
+        afOncePerWell_ = enabled;
+   }
+
    private String referenceAutofocusChannel_ = "460nm"; // e.g. "460nm"
 
    public void setReferenceAutofocusChannel(String channelConfig) {
       referenceAutofocusChannel_ = channelConfig;
    }
+
+
+   // Matches well names like A1, E6, H12 at the start of a position label
+   // (e.g. "E6-Site_0", "E6_pos1", "E06")
+   private static final Pattern WELL_PATTERN = Pattern.compile("^([A-Za-z]{1,2}\\d{1,2})");
+
+   // Keys for (well, [channel], timepoint) combos that have already been autofocused
+   private final Set<String> autofocusedKeys_ = new HashSet<>();
+   // Z position found by autofocus for each key, reused for the other positions in that well
+   private final Map<String, Double> wellZMap_ = new HashMap<>();
+
+   /** Extracts the well name from a position label. Falls back to the full label. */
+   private static String getWellName(String posName) {
+      if (posName == null) {
+         return null;
+      }
+      Matcher m = WELL_PATTERN.matcher(posName);
+      return m.find() ? m.group(1).toUpperCase() : posName;
+   }
+
+   /** Call this at the start of each acquisition so old keys don't carry over. */
+   protected void resetAutofocusWellTracking() {
+      autofocusedKeys_.clear();
+      wellZMap_.clear();
+      lastZByWellChannel_.clear();
+   }
+
    /**
-    * Hook function executing (software) autofocus.  When autofocus is checked in the MDA,
-    * the autofocus should run before each channel / Z Stack combo (i.e. at each time point
-    * and position.
+    * Hook function executing (software) autofocus. Autofocus runs once per well per
+    * time point (not once per position). When autofocusEveryChannel_ is set, it runs once
+    * per well per channel per time point.
     *
     * @return The Hook.
     */
    protected AcquisitionHook autofocusHook(int skipFrames) {
+      resetAutofocusWellTracking();
       return new AcquisitionHook() {
          @Override
          public AcquisitionEvent run(AcquisitionEvent event) {
-            if (!event.isAcquisitionFinishedEvent()
-                  && (event.getZIndex() == null || event.getZIndex() == 0)) {
+            // NEW: when the acquisition ends, forget which wells were autofocused
+            // so a re-acquire autofocuses everything again.
+            if (event.isAcquisitionFinishedEvent()) {
+               resetAutofocusWellTracking();
+               IJ.log("Autofocus tracking reset (acquisition finished).");
+               return event;
+            }
+
+            // CHANGED: removed "!event.isAcquisitionFinishedEvent() &&" since it's handled above
+            if (event.getZIndex() == null || event.getZIndex() == 0) {
                if (event.getTIndex() != null && skipFrames != 0
                      && event.getTIndex() % skipFrames != 0) {
                   return event;
                }
                try {
-                  String posName = event.getTags().get(AcqEngMetadata.POS_NAME); // get pos name (i.e pos0, pos1, etc.)
+                  String posName = event.getTags().get(AcqEngMetadata.POS_NAME);
                   String channel = event.getConfigPreset();
-                  boolean isReferenceChannel = referenceAutofocusChannel_ != null && referenceAutofocusChannel_.equals(channel); // 460nm is the default reference channel for autofocus, but user can change it
-
-                  // CHANGED - AF update Z position
-                  // find Z position to start autofocus from
+                  boolean isReferenceChannel = referenceAutofocusChannel_ != null
+                        && referenceAutofocusChannel_.equals(channel);
                   String zDevice = core_.getFocusDevice();
-                  Double seedZ = null;
 
-                  // check if there is a previously saved reference-channel Z position for this XY position in positionMap_
-                  if (posName != null && positionMap_.containsKey(posName)) {
+                  // ---- once-per-well logic ----
+                  String well = getWellName(posName);
+                  String afKey = null;
+                  if (well != null) {
+                     afKey = well + (autofocusEveryChannel_ ? "|" + channel : "") + "|t" + event.getTIndex();
 
-                     // if there is a previously saved reference-channel Z position for this XY position, use it as the seed
+                     if (autofocusedKeys_.contains(afKey)) {
+                        Double wellZ = wellZMap_.get(afKey);
+                        IJ.log("Autofocus SKIPPED: position " + posName
+                              + " (well " + well + ", t=" + event.getTIndex()
+                              + (autofocusEveryChannel_ ? ", channel " + channel : "")
+                              + ") - well already autofocused, using Z=" + wellZ);
+                        if (wellZ != null) {
+                           // 1. Physically move the stage to this channel's autofocused Z
+                           studio_.core().setPosition(zDevice, wellZ);
+                           studio_.core().waitForDevice(zDevice);
+
+                           // 2. Also put it in the event so the engine and metadata agree
+                           AcquisitionEvent newEvent = event.copy();
+                           newEvent.setZ(event.getZIndex(), wellZ);
+                           if (event.getStageDeviceNames() != null
+                                 && event.getStageDeviceNames().contains(zDevice)) {
+                              newEvent.setStageCoordinate(zDevice, wellZ);
+                           }
+                           return newEvent;
+                        }
+                        return event;
+                     }
+                  }
+
+                  // ---- find Z position to start autofocus from ----
+                  String zKey = (well != null ? well : posName) + "|" + channel;
+                  Double seedZ = lastZByWellChannel_.get(zKey);   // 1) this channel's own last autofocus Z
+
+                  if (seedZ == null && posName != null && positionMap_.containsKey(posName)) {
+                     // 2) fall back to the reference channel's saved Z for this position
                      MultiStagePosition storedMsp = positionMap_.get(posName);
                      for (int i = 0; i < storedMsp.size(); i++) {
                         StagePosition sp = storedMsp.get(i);
-                        // is it a 1D stage position (not XY) and is it the Z drive? If so, use it as the seed Z position for autofocus
                         if (sp.is1DStagePosition() && sp.getStageDeviceLabel().equals(zDevice)) {
                            seedZ = sp.get1DPosition();
                         }
                      }
                   }
-
-                  // if there is no previously saved reference-channel Z position for this XY position, use the current Z position as the seed
                   if (seedZ == null) {
+                     // 3) fall back to the event's Z
                      seedZ = event.getZPosition();
                   }
 
-                  // move Z drive to the seed position before running autofocus
                   studio_.core().setPosition(seedZ);
                   studio_.core().waitForDevice(zDevice);
 
-
-                  // run autofocus
+                  // ---- run autofocus ----
+                  IJ.log("Autofocus RUNNING: position " + posName + " (well " + well + ", t=" + event.getTIndex() + (channel != null ? ", channel " + channel : "") + ", seed Z=" + seedZ + ")");
                   if (autofocusEveryChannel_) {
                      AutofocusPlugin af = studio_.getAutofocusManager().getAutofocusMethod();
                      if (channel != null) {
@@ -936,14 +1012,20 @@ public class AcqEngJAdapter implements AcquisitionEngine, MMAcquistionControlCal
                      studio_.getAutofocusManager().getAutofocusMethod().fullFocus();
                   }
 
-                  // CHANGED - only the reference channel's result updates positionMap_
+                  double afZ = core_.getPosition(zDevice);
+                  lastZByWellChannel_.put(zKey, afZ);
+                  IJ.log("Autofocus DONE: position " + posName + " -> Z=" + afZ);
+
+                  // ---- remember this well's result for the other positions in it ----
+                  if (afOncePerWell_ && afKey != null) {
+                     autofocusedKeys_.add(afKey);
+                     wellZMap_.put(afKey, core_.getPosition(zDevice));
+                  }
+
+                  // only the reference channel's result updates positionMap_
                   if (posName != null && isReferenceChannel) {
-
-                     // create a new MultiStagePosition for this XY position and store the new Z position in it
-                     MultiStagePosition msp = new MultiStagePosition(); // associate it with this position
+                     MultiStagePosition msp = new MultiStagePosition();
                      msp.setLabel(posName);
-
-                     // save the current Z position after autofocus in the MultiStagePosition
                      for (String deviceName : event.getStageDeviceNames()) {
                         msp.add(StagePosition.create1D(deviceName, core_.getPosition(deviceName)));
                      }
