@@ -775,7 +775,12 @@ public final class AcqControlDlg extends JFrame implements PropertyChangeListene
 
       afAutofocusCheckBox.addActionListener(e -> getAcquisitionEngine().setAutofocusEveryChannel(afAutofocusCheckBox.isSelected()));
 
+      JCheckBox afOncePerPositionCheckBox = new JCheckBox("AF once per well");
+
+      afOncePerPositionCheckBox.addActionListener(e -> getAcquisitionEngine().setAFOncePerPosition(afOncePerPositionCheckBox.isSelected()));
+
       afPanel_.add(afAutofocusCheckBox, "alignx center");
+      afPanel_.add(afOncePerPositionCheckBox, "alignx center");
 
       afPanel_.addActionListener((ActionEvent arg0) -> applySettingsFromGUI());
       return afPanel_;

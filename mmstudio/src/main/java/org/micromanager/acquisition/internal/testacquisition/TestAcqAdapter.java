@@ -126,6 +126,11 @@ public class TestAcqAdapter extends DataViewerListener implements
    public void setAutofocusEveryChannel(boolean enabled) {
         // No-op
    }
+   @Override
+   public void setAFOncePerPosition(boolean enabled) {
+      // Not used by test acquisitions.
+   }
+
    private class RunnablePlusIndices {
       int channel_;
       int slice_;

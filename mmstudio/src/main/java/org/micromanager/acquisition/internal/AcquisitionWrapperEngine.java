@@ -67,6 +67,11 @@ public final class AcquisitionWrapperEngine implements AcquisitionEngine,
       // No-op
    }
 
+   @Override
+   public void setAFOncePerPosition(boolean enabled) {
+      // No-op
+   }
+
    /**
     * Sets the settings to be used in the next acquisition.
     *

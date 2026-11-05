@@ -119,7 +119,8 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
    private static final String[] SETTINGS_600 = {
       "narrowSpikeFWHM_um",
       "minBroadPeakFWHM_um",
-      "leftDropFraction"
+      "leftDropFraction",
+      "downSampling"
    };
 
    private static final String[] CHANNEL_NAMES = {"300nm", "460nm", "600nm", "NADH", "FAD"};
@@ -359,6 +360,7 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
 
    @Override
    public double fullFocus() throws Exception {
+      IJ.log("----------------------------------------------------------------------------------------------------------");
       long t0 = System.currentTimeMillis();
       double bestDist = 5000;
       double bestSh = 0;
@@ -404,6 +406,7 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
       double bestZ = original_z;
       
       try {
+         
          IJ.log("TCA Autofocus started.");
          final boolean shutterOpen = core_.getShutterOpen();
          core_.setShutterOpen(true);
@@ -504,6 +507,7 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
          }
 
          if (results == null) {
+            IJ.log("----------------------------------------------------------------------------------------------------------");
             throw new IllegalStateException("Focus results should never be null after analyzer selection.");
          }
 
