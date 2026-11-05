@@ -56,7 +56,7 @@ public class ComputeBestFocus600nm {
         public double smoothingParam = 0.1;
         public int nFinePoints = 5000;
         public int nDenseCrossingPoints = 50000;
-
+        public int downSampling = 1;
         public boolean rejectNarrowExtrema = true;
         public int nSpikeCleanPasses = 2;
         public double narrowSpikeFWHM_um = 10.0;
@@ -253,6 +253,11 @@ public class ComputeBestFocus600nm {
 
         if (!Double.isFinite(settings.intensityThresholdCoefficient)) {
             throw new IllegalArgumentException("settings.intensityThresholdCoefficient must be a finite numeric scalar.");
+        }
+        // perform down sampling by a factor settings.downSample
+        if (settings.downSampling > 1) {
+            imageArray = downsampleAll(imageArray, settings.downSampling);
+
         }
 
         double meanNonZeroPixelValue = findMeanNonZeroPixelValueInImageArray(imageArray);
@@ -1932,5 +1937,20 @@ public class ComputeBestFocus600nm {
             x[i] = sum / A[i][i];
         }
         return x;
+    }
+
+    public static List<ImageProcessor> downsampleAll(List<ImageProcessor> imageArray, int downSample) {
+        List<ImageProcessor> out = new ArrayList<>(imageArray.size());
+        for (ImageProcessor ip : imageArray) {
+            out.add(downsample(ip, downSample));
+        }
+        return out;
+    }
+
+    public static ImageProcessor downsample(ImageProcessor ip, int downSample) {
+        int newW = Math.max(1, ip.getWidth() / downSample);
+        int newH = Math.max(1, ip.getHeight() / downSample);
+        ip.setInterpolationMethod(ImageProcessor.BILINEAR);  // averaging only applies with BILINEAR or BICUBIC
+        return ip.resize(newW, newH, true);                  // true = average when downsizing
     }
 }

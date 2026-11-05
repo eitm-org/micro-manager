@@ -119,7 +119,8 @@ public class TCAAutofocus extends AutofocusBase implements AutofocusPlugin, SciJ
    private static final String[] SETTINGS_600 = {
       "narrowSpikeFWHM_um",
       "minBroadPeakFWHM_um",
-      "leftDropFraction"
+      "leftDropFraction",
+      "downSampling"
    };
 
    private static final String[] CHANNEL_NAMES = {"300nm", "460nm", "600nm", "NADH", "FAD"};
